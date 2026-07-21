@@ -141,3 +141,25 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# ─────────────────────────────────────────────────────────────
+# lab-os
+# ─────────────────────────────────────────────────────────────
+
+# Astro
+dist/
+.astro/
+
+# PRIVATE OVERLAY — NEVER COMMIT.
+# Local dev symlinks ../lab-os-private here; CI checks it out here.
+# Contents belong to the lab-os-private repository only.
+.private/
+.private
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# macOS
+.DS_Store
