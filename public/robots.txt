@@ -1,0 +1,4 @@
+User-agent: *
+Disallow: /internal/
+
+Sitemap: https://ionlab-dgu.github.io/sitemap-index.xml

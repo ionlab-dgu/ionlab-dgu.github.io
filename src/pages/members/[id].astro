@@ -1,0 +1,129 @@
+---
+import PublicLayout from '../../layouts/PublicLayout.astro';
+import Prose from '../../components/common/Prose.astro';
+import ProjectCard from '../../components/public/ProjectCard.astro';
+import PublicationItem from '../../components/public/PublicationItem.astro';
+import {
+  getMembers,
+  getPublicResearchProjects,
+  getPublications,
+  publicOnly,
+} from '../../lib/content';
+import { filled } from '../../lib/config';
+
+export function getStaticPaths() {
+  return publicOnly(getMembers()).map((member) => ({
+    params: { id: member.data.id },
+    props: { member },
+  }));
+}
+
+const { member } = Astro.props;
+const m = member.data;
+
+const name = m.name_ko || m.name_en || m.id;
+const photo = filled(m.photo);
+const initial = name.trim().charAt(0);
+
+const ROLE_LABEL: Record<string, string> = {
+  pi: 'PI',
+  postdoc: '박사후연구원',
+  phd: '박사과정',
+  ms: '석사과정',
+  ug_intern: '학부 인턴',
+  alumni: '졸업생',
+};
+
+// 이 사람이 참여한 공개 프로젝트 (lead 또는 collaborator)
+const projects = getPublicResearchProjects().filter((p) => {
+  const d = p.index.data;
+  return d.lead === m.id || (d.collaborators ?? []).includes(m.id);
+});
+
+const publications = publicOnly(getPublications()).filter((p) =>
+  (p.data.authors ?? []).includes(m.id),
+);
+
+const allMembers = publicOnly(getMembers());
+const interests = (m.interests ?? []).map(filled).filter(Boolean);
+const email = filled(m.email);
+const github = filled(m.github);
+const homepage = filled(m.homepage);
+---
+
+<PublicLayout title={name} description={`${name} — ${ROLE_LABEL[m.role] ?? m.role}`}>
+  <a href="/members" class="link text-sm">← 구성원</a>
+
+  <div class="mt-6 flex flex-wrap items-start gap-6">
+    {
+      photo ? (
+        <img src={photo} alt={name} class="h-28 w-28 shrink-0 rounded-full object-cover" />
+      ) : (
+        <div class="bg-brand-100 text-brand-800 dark:bg-brand-900 dark:text-brand-300 flex h-28 w-28 shrink-0 items-center justify-center rounded-full text-4xl font-semibold">
+          {initial}
+        </div>
+      )
+    }
+
+    <div>
+      <h1 class="text-3xl font-bold tracking-tight">{name}</h1>
+      {m.name_en && m.name_ko && <p class="mt-0.5 text-gray-500 dark:text-gray-400">{m.name_en}</p>}
+      <p class="mt-2 text-gray-600 dark:text-gray-400">
+        {ROLE_LABEL[m.role] ?? m.role}
+        {m.cohort && <span class="ml-2 text-gray-400">· {m.cohort} 합류</span>}
+        {m.alumni_since && <span class="ml-2 text-gray-400">· {m.alumni_since} 졸업</span>}
+      </p>
+      {m.current_position && <p class="mt-1 text-gray-600 dark:text-gray-400">{m.current_position}</p>}
+
+      <div class="mt-3 flex flex-wrap gap-4 text-sm">
+        {email && <a href={`mailto:${email}`} class="link">{email}</a>}
+        {github && <a href={`https://github.com/${github}`} class="link">GitHub</a>}
+        {homepage && <a href={homepage} class="link">홈페이지</a>}
+      </div>
+    </div>
+  </div>
+
+  {
+    interests.length > 0 && (
+      <div class="mt-8 flex flex-wrap gap-2">
+        {interests.map((tag) => (
+          <span class="rounded-md bg-gray-100 px-2 py-1 text-sm text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+            {tag}
+          </span>
+        ))}
+      </div>
+    )
+  }
+
+  {
+    member.body && (
+      <div class="mt-8 max-w-2xl">
+        <Prose body={member.body} />
+      </div>
+    )
+  }
+
+  {
+    projects.length > 0 && (
+      <section class="mt-12">
+        <h2 class="mb-4 text-xl font-bold tracking-tight">참여 연구</h2>
+        <div class="grid gap-4 sm:grid-cols-2">
+          {projects.map((project) => (
+            <ProjectCard project={project} />
+          ))}
+        </div>
+      </section>
+    )
+  }
+
+  {
+    publications.length > 0 && (
+      <section class="mt-12">
+        <h2 class="mb-2 text-xl font-bold tracking-tight">논문</h2>
+        {publications.map((publication) => (
+          <PublicationItem publication={publication} members={allMembers} />
+        ))}
+      </section>
+    )
+  }
+</PublicLayout>

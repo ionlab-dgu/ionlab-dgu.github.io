@@ -1,0 +1,98 @@
+---
+import PublicLayout from '../../layouts/PublicLayout.astro';
+import PageHeader from '../../components/common/PageHeader.astro';
+import Prose from '../../components/common/Prose.astro';
+import EmptyState from '../../components/common/EmptyState.astro';
+import { getHandbookPages, publicVisible } from '../../lib/content';
+
+// public 핸드북: private 오버레이 제외 + visibility가 internal인 문서 제외
+const pages = publicVisible(getHandbookPages());
+
+const SECTION_LABEL: Record<string, string> = {
+  '': '개요',
+  onboarding: '온보딩',
+  policies: '정책',
+  tutorials: '튜토리얼',
+};
+const SECTION_ORDER = ['', 'onboarding', 'policies', 'tutorials'];
+
+const sections = SECTION_ORDER.map((key) => ({
+  key,
+  label: SECTION_LABEL[key] ?? key,
+  pages: pages.filter((p) => (p.data.section ?? '') === key),
+})).filter((s) => s.pages.length > 0);
+
+// 위에 없는 섹션이 생기면 뒤에 붙입니다.
+for (const page of pages) {
+  const key = page.data.section ?? '';
+  if (!SECTION_ORDER.includes(key) && !sections.find((s) => s.key === key)) {
+    sections.push({
+      key,
+      label: SECTION_LABEL[key] ?? key,
+      pages: pages.filter((p) => (p.data.section ?? '') === key),
+    });
+  }
+}
+---
+
+<PublicLayout title="핸드북" description="ION Lab에서 일하는 방식">
+  <PageHeader
+    title="핸드북"
+    description="랩에서 일하는 방식을 적어둔 문서입니다. 고칠 것이 보이면 직접 PR을 보내주세요."
+  />
+
+  {
+    pages.length === 0 ? (
+      <EmptyState
+        title="공개된 핸드북 문서가 없습니다"
+        hint="content/handbook/ 아래에 마크다운을 추가하세요. frontmatter의 visibility를 public 으로 두면 여기에 표시됩니다."
+      />
+    ) : (
+      <div class="lg:flex lg:gap-12">
+        {/* 목차 */}
+        <nav class="mb-10 shrink-0 lg:sticky lg:top-8 lg:mb-0 lg:h-fit lg:w-56">
+          <ul class="space-y-4 text-sm">
+            {sections.map((section) => (
+              <li>
+                <p class="font-semibold text-gray-500 dark:text-gray-400">{section.label}</p>
+                <ul class="mt-1.5 space-y-1">
+                  {section.pages.map((page) => (
+                    <li>
+                      <a href={`#${page.data.slug}`} class="link">
+                        {page.data.title ?? page.data.slug}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
+        {/* 본문 */}
+        <div class="min-w-0 max-w-3xl flex-1 space-y-16">
+          {sections.map((section) =>
+            section.pages.map((page) => (
+              <article id={page.data.slug} class="scroll-mt-8">
+                <div class="mb-4 border-b border-gray-200 pb-3 dark:border-gray-800">
+                  <p class="text-xs tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                    {section.label}
+                  </p>
+                  <h2 class="mt-1 text-2xl font-bold tracking-tight">
+                    {page.data.title ?? page.data.slug}
+                  </h2>
+                  {page.data.updated && (
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      마지막 수정 {page.data.updated}
+                    </p>
+                  )}
+                </div>
+                <Prose body={page.body} />
+              </article>
+            )),
+          )}
+        </div>
+      </div>
+    )
+  }
+</PublicLayout>

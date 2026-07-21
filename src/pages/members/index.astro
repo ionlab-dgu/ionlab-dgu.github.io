@@ -1,0 +1,77 @@
+---
+import PublicLayout from '../../layouts/PublicLayout.astro';
+import PageHeader from '../../components/common/PageHeader.astro';
+import MemberCard from '../../components/public/MemberCard.astro';
+import EmptyState from '../../components/common/EmptyState.astro';
+import { getMembers, publicOnly } from '../../lib/content';
+import type { Doc, Member, MemberRole } from '../../lib/types';
+
+const members = publicOnly(getMembers());
+
+const GROUPS: Array<{ role: MemberRole; label: string }> = [
+  { role: 'pi', label: '지도교수' },
+  { role: 'postdoc', label: '박사후연구원' },
+  { role: 'phd', label: '박사과정' },
+  { role: 'ms', label: '석사과정' },
+  { role: 'ug_intern', label: '학부 인턴' },
+];
+
+const grouped = GROUPS.map((g) => ({
+  ...g,
+  members: members.filter((m: Doc<Member>) => m.data.role === g.role),
+})).filter((g) => g.members.length > 0);
+
+const alumni = members.filter((m) => m.data.role === 'alumni');
+---
+
+<PublicLayout title="구성원" description="ION Lab 구성원 소개">
+  <PageHeader title="구성원" />
+
+  {
+    members.length === 0 ? (
+      <EmptyState
+        title="등록된 구성원이 없습니다"
+        hint="content/members/ 에 프로필 파일을 추가하면 여기에 표시됩니다. _template.md 를 복사해 시작하세요."
+        command="pnpm new:member"
+      />
+    ) : (
+      <div class="space-y-12">
+        {grouped.map((group) => (
+          <section>
+            <h2 class="mb-4 text-sm font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
+              {group.label}
+            </h2>
+            <div class="grid gap-4 sm:grid-cols-2">
+              {group.members.map((member) => (
+                <MemberCard member={member} />
+              ))}
+            </div>
+          </section>
+        ))}
+
+        {alumni.length > 0 && (
+          <section class="border-t border-gray-200 pt-10 dark:border-gray-800">
+            <h2 class="mb-4 text-sm font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
+              졸업생
+            </h2>
+            <ul class="space-y-2">
+              {alumni.map((m) => (
+                <li class="flex flex-wrap items-baseline gap-x-3 text-sm">
+                  <a href={`/members/${m.data.id}`} class="link font-medium">
+                    {m.data.name_ko || m.data.name_en || m.data.id}
+                  </a>
+                  {m.data.alumni_since && (
+                    <span class="text-gray-500 dark:text-gray-400">{m.data.alumni_since} 졸업</span>
+                  )}
+                  {m.data.current_position && (
+                    <span class="text-gray-500 dark:text-gray-400">· {m.data.current_position}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+      </div>
+    )
+  }
+</PublicLayout>

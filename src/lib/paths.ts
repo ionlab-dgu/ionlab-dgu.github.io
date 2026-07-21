@@ -11,10 +11,38 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
+/**
+ * 저장소 루트를 찾습니다.
+ *
+ * 주의: `import.meta.url` 기준으로 계산하면 **빌드 시 깨집니다.**
+ * Astro는 프리렌더 단계에서 번들을 `dist/.prerender/` 에 두고 실행하기 때문에
+ * 거기서 두 단계를 올라가면 `dist/` 가 루트로 잡히고, content/config를 못 읽어
+ * 모든 목록이 조용히 비어 버립니다 (getStaticPaths가 빈 배열 → 상세 페이지 0개 생성).
+ *
+ * 그래서 cwd에서 시작해 위로 올라가며 `content/`와 `package.json`이 함께 있는
+ * 디렉터리를 찾습니다. 못 찾으면 마지막 수단으로 파일 위치 기준을 씁니다.
+ */
+function findRoot(): string {
+  const marker = (dir: string) =>
+    fs.existsSync(path.join(dir, 'package.json')) && fs.existsSync(path.join(dir, 'content'));
 
-/** 저장소 루트 (src/lib/ 에서 두 단계 위) */
-export const ROOT = path.resolve(here, '../..');
+  let dir = process.cwd();
+  for (let i = 0; i < 6; i++) {
+    if (marker(dir)) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+
+  const fromFile = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+  if (marker(fromFile)) return fromFile;
+
+  throw new Error(
+    `[lab-os] 저장소 루트를 찾지 못했습니다 (content/ 와 package.json 이 함께 있는 디렉터리). cwd=${process.cwd()}`,
+  );
+}
+
+export const ROOT = findRoot();
 
 export const CONTENT_DIR = path.join(ROOT, 'content');
 export const CONFIG_DIR = path.join(ROOT, 'config');

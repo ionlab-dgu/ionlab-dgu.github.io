@@ -1,0 +1,130 @@
+---
+import PublicLayout from '../../layouts/PublicLayout.astro';
+import Prose from '../../components/common/Prose.astro';
+import PublicationItem from '../../components/public/PublicationItem.astro';
+import {
+  getPublicResearchProjects,
+  getPublicationsByProject,
+  getMembers,
+  displayName,
+  publicOnly,
+} from '../../lib/content';
+import { filled } from '../../lib/config';
+
+export function getStaticPaths() {
+  return getPublicResearchProjects().map((project) => ({
+    params: { slug: project.index.data.slug },
+    props: { project },
+  }));
+}
+
+const { project } = Astro.props;
+const p = project.index.data;
+
+const STATUS_LABEL: Record<string, string> = {
+  idea: '구상',
+  active: '진행 중',
+  writing: '집필 중',
+  submitted: '심사 중',
+  accepted: '게재 확정',
+  paused: '중단',
+  archived: '보관',
+};
+const STATUS_TONE: Record<string, string> = {
+  idea: 'badge-neutral',
+  active: 'badge-green',
+  writing: 'badge-blue',
+  submitted: 'badge-amber',
+  accepted: 'badge-green',
+  paused: 'badge-neutral',
+  archived: 'badge-neutral',
+};
+
+const members = publicOnly(getMembers());
+const people = [p.lead, ...(p.collaborators ?? [])].filter(Boolean) as string[];
+const publications = publicOnly(getPublicationsByProject(p.slug));
+const venue = filled(p.target_venue);
+
+// 공개 페이지에서는 index.md 본문만 보여줍니다.
+// experiments / ideas / meetings 는 내부 문서이므로 /internal/research/<slug> 에서만 노출합니다.
+---
+
+<PublicLayout title={p.title ?? p.slug} description={filled(p.short)}>
+  <a href="/research" class="link text-sm">← 연구</a>
+
+  <div class="mt-6 flex flex-wrap items-start justify-between gap-4">
+    <h1 class="max-w-3xl text-3xl font-bold tracking-tight">{p.title ?? p.slug}</h1>
+    <span class:list={['badge', STATUS_TONE[p.status] ?? 'badge-neutral']}>
+      {STATUS_LABEL[p.status] ?? p.status}
+    </span>
+  </div>
+
+  {filled(p.short) && <p class="mt-3 max-w-2xl text-lg text-gray-600 dark:text-gray-400">{p.short}</p>}
+
+  <dl class="mt-6 flex flex-wrap gap-x-8 gap-y-3 text-sm">
+    {
+      people.length > 0 && (
+        <div>
+          <dt class="text-gray-500 dark:text-gray-400">참여자</dt>
+          <dd class="mt-0.5">
+            {people.map((id, i) => (
+              <>
+                {i > 0 && ', '}
+                <a href={`/members/${id}`} class="link">
+                  {displayName(id, members)}
+                </a>
+              </>
+            ))}
+          </dd>
+        </div>
+      )
+    }
+    {
+      venue && (
+        <div>
+          <dt class="text-gray-500 dark:text-gray-400">목표 발표처</dt>
+          <dd class="mt-0.5">{venue}</dd>
+        </div>
+      )
+    }
+    {
+      p.start && (
+        <div>
+          <dt class="text-gray-500 dark:text-gray-400">시작</dt>
+          <dd class="mt-0.5">{p.start}</dd>
+        </div>
+      )
+    }
+  </dl>
+
+  {
+    (p.tags ?? []).length > 0 && (
+      <div class="mt-4 flex flex-wrap gap-1.5">
+        {(p.tags ?? []).map((t) => (
+          <span class="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+            {t}
+          </span>
+        ))}
+      </div>
+    )
+  }
+
+  <div class="mt-10 max-w-3xl border-t border-gray-200 pt-8 dark:border-gray-800">
+    <Prose body={project.index.body} />
+  </div>
+
+  {
+    publications.length > 0 && (
+      <section class="mt-12 max-w-3xl">
+        <h2 class="mb-2 text-xl font-bold tracking-tight">관련 논문</h2>
+        {publications.map((publication) => (
+          <PublicationItem publication={publication} members={members} />
+        ))}
+      </section>
+    )
+  }
+
+  <p class="mt-12 text-sm text-gray-500 dark:text-gray-400">
+    실험 로그·미팅 노트는 <a href={`/internal/research/${p.slug}`} class="link">내부 페이지</a>에서 볼 수 있습니다.
+  </p>
+</PublicLayout>

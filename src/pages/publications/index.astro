@@ -1,0 +1,46 @@
+---
+import PublicLayout from '../../layouts/PublicLayout.astro';
+import PageHeader from '../../components/common/PageHeader.astro';
+import PublicationItem from '../../components/public/PublicationItem.astro';
+import EmptyState from '../../components/common/EmptyState.astro';
+import { getPublications, getMembers, publicOnly } from '../../lib/content';
+
+const publications = publicOnly(getPublications());
+const members = publicOnly(getMembers());
+
+// 연도별 그룹 (연도 미상은 마지막)
+const years = [...new Set(publications.map((p) => p.data.year ?? 0))].sort((a, b) => b - a);
+const grouped = years.map((year) => ({
+  year,
+  items: publications.filter((p) => (p.data.year ?? 0) === year),
+}));
+---
+
+<PublicLayout title="논문" description="ION Lab의 발표 논문 목록">
+  <PageHeader title="논문">
+    <a slot="actions" href="/publications/refs.bib" class="link text-sm">BibTeX ↓</a>
+  </PageHeader>
+
+  {
+    publications.length === 0 ? (
+      <EmptyState
+        title="등록된 논문이 없습니다"
+        hint="content/publications/ 에 파일을 추가하고 refs.bib 도 함께 갱신하세요."
+        command="pnpm new:publication"
+      />
+    ) : (
+      <div class="space-y-10">
+        {grouped.map((group) => (
+          <section>
+            <h2 class="mb-1 text-sm font-semibold tracking-wide text-gray-500 tabular-nums dark:text-gray-400">
+              {group.year || '연도 미상'}
+            </h2>
+            {group.items.map((publication) => (
+              <PublicationItem publication={publication} members={members} />
+            ))}
+          </section>
+        ))}
+      </div>
+    )
+  }
+</PublicLayout>

@@ -1,0 +1,51 @@
+---
+import PublicLayout from '../../layouts/PublicLayout.astro';
+import PageHeader from '../../components/common/PageHeader.astro';
+import Prose from '../../components/common/Prose.astro';
+import EmptyState from '../../components/common/EmptyState.astro';
+import { getNews, publicOnly } from '../../lib/content';
+
+const news = publicOnly(getNews());
+
+const CATEGORY_LABEL: Record<string, string> = {
+  paper: '논문',
+  award: '수상',
+  member: '구성원',
+  event: '행사',
+  grant: '과제',
+  misc: '소식',
+};
+---
+
+<PublicLayout title="소식" description="ION Lab 소식">
+  <PageHeader title="소식" />
+
+  {
+    news.length === 0 ? (
+      <EmptyState
+        title="등록된 소식이 없습니다"
+        hint="content/news/YYYY-MM-<keyword>.md 형식으로 추가하세요. _template.md 를 복사하면 됩니다."
+      />
+    ) : (
+      <div class="max-w-3xl space-y-10">
+        {news.map((item) => (
+          <article class="border-b border-gray-200 pb-10 last:border-0 dark:border-gray-800">
+            <div class="flex flex-wrap items-baseline gap-3">
+              <time class="font-mono text-sm text-gray-500 dark:text-gray-400">{item.data.date}</time>
+              {item.data.category && (
+                <span class="badge badge-neutral">
+                  {CATEGORY_LABEL[item.data.category] ?? item.data.category}
+                </span>
+              )}
+              {item.data.pinned && <span class="badge badge-blue">고정</span>}
+            </div>
+            <h2 class="mt-2 text-xl font-semibold">{item.data.title ?? item.data.slug}</h2>
+            <div class="mt-3">
+              <Prose body={item.body} />
+            </div>
+          </article>
+        ))}
+      </div>
+    )
+  }
+</PublicLayout>

@@ -1,8 +1,10 @@
 ---
 /**
  * 마크다운 본문을 렌더합니다.
- * Tailwind typography 플러그인 대신 필요한 스타일만 직접 정의했습니다
- * (의존성을 줄이고, 표·체크박스 등 우리가 실제로 쓰는 요소만 다루기 위해).
+ *
+ * 스타일(.prose-lab)은 src/styles/global.css 에 있습니다.
+ * Tailwind v4에서는 컴포넌트의 <style> 블록에서 @apply를 쓰려면 @reference 지시자가
+ * 필요한데, 전역에 한 번만 정의하는 편이 단순해서 그렇게 했습니다.
  */
 import { renderMarkdown } from '../../lib/markdown';
 
@@ -16,71 +18,3 @@ const rendered = html ?? renderMarkdown(body);
 ---
 
 {rendered && <div class="prose-lab" set:html={rendered} />}
-
-<style is:global>
-  .prose-lab {
-    @apply text-gray-800 dark:text-gray-200;
-    line-height: 1.75;
-  }
-  .prose-lab > * + * {
-    @apply mt-4;
-  }
-  .prose-lab h1 {
-    @apply mt-10 mb-4 text-2xl font-bold tracking-tight;
-  }
-  .prose-lab h2 {
-    @apply mt-10 mb-3 border-b border-gray-200 pb-1.5 text-xl font-semibold dark:border-gray-800;
-  }
-  .prose-lab h3 {
-    @apply mt-8 mb-2 text-lg font-semibold;
-  }
-  .prose-lab h4 {
-    @apply mt-6 mb-2 font-semibold;
-  }
-  .prose-lab a {
-    @apply text-brand-700 dark:text-brand-300 underline-offset-2 hover:underline;
-  }
-  .prose-lab ul {
-    @apply list-disc space-y-1 pl-6;
-  }
-  .prose-lab ol {
-    @apply list-decimal space-y-1 pl-6;
-  }
-  .prose-lab li > ul,
-  .prose-lab li > ol {
-    @apply mt-1;
-  }
-  .prose-lab li::marker {
-    @apply text-gray-400;
-  }
-  .prose-lab input[type='checkbox'] {
-    @apply mr-1.5 align-middle;
-  }
-  .prose-lab code {
-    @apply rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[0.875em] dark:bg-gray-800;
-  }
-  .prose-lab pre {
-    @apply overflow-x-auto rounded-lg bg-gray-900 p-4 text-sm text-gray-100 dark:bg-gray-800;
-  }
-  .prose-lab pre code {
-    @apply bg-transparent p-0 text-inherit;
-  }
-  .prose-lab blockquote {
-    @apply border-l-4 border-gray-300 pl-4 text-gray-600 italic dark:border-gray-700 dark:text-gray-400;
-  }
-  .prose-lab table {
-    @apply block w-full overflow-x-auto text-sm;
-  }
-  .prose-lab th {
-    @apply border-b border-gray-300 px-3 py-2 text-left font-semibold whitespace-nowrap dark:border-gray-700;
-  }
-  .prose-lab td {
-    @apply border-b border-gray-200 px-3 py-2 align-top dark:border-gray-800;
-  }
-  .prose-lab hr {
-    @apply my-8 border-gray-200 dark:border-gray-800;
-  }
-  .prose-lab img {
-    @apply max-w-full rounded-lg;
-  }
-</style>
