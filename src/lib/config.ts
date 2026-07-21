@@ -23,10 +23,17 @@ function loadYaml<T>(filename: string, fallback: T): T {
 
 // ─── site.yaml ──────────────────────────────────────────────
 
+export interface ResearchArea {
+  title_ko?: string;
+  title_en?: string;
+  description?: string;
+}
+
 export interface SiteConfig {
   lab: {
     name_ko?: string;
     name_en?: string;
+    full_name_en?: string;
     tagline_ko?: string;
     tagline_en?: string;
     university_ko?: string;
@@ -45,6 +52,7 @@ export interface SiteConfig {
     hero_headline_ko?: string;
     hero_body_ko?: string;
   };
+  research_areas?: ResearchArea[];
   links: Record<string, string>;
 }
 

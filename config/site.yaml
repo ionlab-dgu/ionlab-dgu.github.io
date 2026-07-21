@@ -4,12 +4,13 @@
 lab:
   name_ko: ION Lab
   name_en: ION Lab
-  tagline_ko: 'TODO: 한 줄 소개 (예: 지능형 신호·데이터 연구실)'
-  tagline_en: 'TODO: one-line English tagline'
+  full_name_en: Intelligence and Optimization in Networks (ION) Lab
+  tagline_ko: 그래프로 연결된 시스템의 상호작용을 이해하고, 지능적이고 효율적으로 만듭니다
+  tagline_en: Understanding interactions in graph-structured, networked systems — and making them intelligent and optimized
   university_ko: 동국대학교
   university_en: Dongguk University
-  department_ko: 'TODO: 학과명'
-  department_en: 'TODO: Department name'
+  department_ko: 컴퓨터·AI학과
+  department_en: Department of Computer Science and Artificial Intelligence
   address_ko: 'TODO: 서울특별시 중구 필동로1길 30, 동국대학교 OOO관 OOO호'
   room: 'TODO: OOO관 OOO호'
 
@@ -28,8 +29,27 @@ site:
   locale_default: ko
   locales: [ko, en]
   # 홈 화면 상단 히어로에 표시할 문구
-  hero_headline_ko: 'TODO: 홈 히어로 헤드라인'
-  hero_body_ko: 'TODO: 두세 문장으로 연구실이 무엇을 하는지'
+  hero_headline_ko: 그래프로 연결된 시스템을 지능적이고 효율적으로
+  hero_body_ko: >-
+    ION Lab은 그래프 구조를 가진 네트워크 시스템에서 개체들이 어떻게 상호작용하는지를
+    이해하고, 그 위에서 동작하는 학습·추론을 더 정확하고 효율적으로 만드는 방법을 연구합니다.
+    그래프 학습과 추론, 효율적인 AI를 위한 최적화, 지능형 네트워크, 생성 모델이 주요 주제이며,
+    엣지·IoT 시스템과 헬스케어 등에 적용합니다.
+
+# 홈·연구 페이지에서 쓰는 연구분야 요약.
+research_areas:
+  - title_ko: 그래프 학습과 추론
+    title_en: Graph-based Learning & Inference
+    description: 'TODO: 한두 문장 설명'
+  - title_ko: 효율적 AI를 위한 최적화
+    title_en: Optimization for Efficient AI
+    description: 'TODO: 한두 문장 설명'
+  - title_ko: 지능형 네트워크
+    title_en: Intelligent Networks
+    description: 'TODO: 한두 문장 설명'
+  - title_ko: 생성 모델
+    title_en: Generative Models
+    description: 'TODO: 한두 문장 설명'
 
 # 푸터/멤버 카드에서 쓰는 외부 링크. 비워두면 렌더링에서 생략됩니다.
 links:

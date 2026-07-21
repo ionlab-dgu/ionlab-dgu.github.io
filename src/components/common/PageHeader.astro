@@ -10,7 +10,7 @@ const { title, description, eyebrow } = Astro.props;
 ---
 
 <div class="mb-10">
-  {eyebrow && <p class="text-brand-600 dark:text-brand-400 text-sm font-medium">{eyebrow}</p>}
+  {eyebrow && <p class="text-brand-700 dark:text-brand-300 text-sm font-medium">{eyebrow}</p>}
   <div class="flex flex-wrap items-baseline justify-between gap-4">
     <h1 class="text-3xl font-bold tracking-tight">{title}</h1>
     <slot name="actions" />

@@ -18,10 +18,10 @@ projects: []
 grants: []
 # 예:
 # grants:
-#   - grant_slug: example-nrf-young-researcher
+#   - grant_slug: example-nrf-graph-optimization
 #     participation_pct: 50
 
-interests: [] # 자유 키워드. 예: [neural decoding, bayesian inference]
+interests: [] # 자유 키워드. 예: [graph neural networks, optimization]
 
 github: # GitHub 사용자명 (@ 없이). 인증·권한 매핑에 쓰입니다.
 email:

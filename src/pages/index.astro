@@ -1,22 +1,140 @@
 ---
-import '../styles/global.css';
-// Placeholder home page — replaced in step 4 (routing) with the real PublicLayout version.
+import PublicLayout from '../layouts/PublicLayout.astro';
+import ProjectCard from '../components/public/ProjectCard.astro';
+import PublicationItem from '../components/public/PublicationItem.astro';
+import NewsItemCard from '../components/public/NewsItem.astro';
+import EmptyState from '../components/common/EmptyState.astro';
+import { site, siteName, filled } from '../lib/config';
+import {
+  getPublicResearchProjects,
+  getPublications,
+  getNews,
+  getMembers,
+  publicOnly,
+} from '../lib/content';
+
+const headline = filled(site.site?.hero_headline_ko) ?? filled(site.lab?.tagline_ko);
+const heroBody = filled(site.site?.hero_body_ko);
+const university = filled(site.lab?.university_ko);
+const department = filled(site.lab?.department_ko);
+
+const projects = getPublicResearchProjects().slice(0, 4);
+const publications = publicOnly(getPublications()).slice(0, 5);
+const news = publicOnly(getNews()).slice(0, 4);
+const members = publicOnly(getMembers());
+const memberCount = members.filter((m) => m.data.role !== 'alumni').length;
 ---
 
-<html lang="ko">
-  <head>
-    <meta charset="utf-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width" />
-    <meta name="generator" content={Astro.generator} />
-    <title>ION Lab</title>
-  </head>
-  <body>
-    <main class="mx-auto max-w-3xl px-6 py-24">
-      <h1 class="text-brand-600 text-4xl font-bold tracking-tight">ION Lab</h1>
-      <p class="mt-4 text-gray-600 dark:text-gray-400">
-        Dongguk University · lab-os scaffold in progress.
-      </p>
-    </main>
-  </body>
-</html>
+<PublicLayout>
+  {/* ── Hero ───────────────────────────────────────────── */}
+  <section class="border-b border-gray-200 pb-12 dark:border-gray-800">
+    <p class="text-brand-700 dark:text-brand-300 text-sm font-medium">
+      {[university, department].filter(Boolean).join(' · ') || '동국대학교'}
+    </p>
+    <h1 class="mt-3 text-4xl font-bold tracking-tight sm:text-5xl">{siteName}</h1>
+
+    {
+      headline ? (
+        <p class="mt-4 max-w-2xl text-xl text-gray-700 dark:text-gray-300">{headline}</p>
+      ) : (
+        <p class="mt-4 max-w-2xl text-xl text-gray-400 italic dark:text-gray-600">
+          config/site.yaml 의 hero_headline_ko 를 채우면 여기에 표시됩니다.
+        </p>
+      )
+    }
+
+    {heroBody && <p class="mt-4 max-w-2xl text-gray-600 dark:text-gray-400">{heroBody}</p>}
+
+    <div class="mt-8 flex flex-wrap gap-3">
+      <a href="/research" class="btn-primary">연구 보기</a>
+      <a
+        href="/join"
+        class="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-medium transition-colors hover:border-gray-400 dark:border-gray-700"
+      >
+        합류하기
+      </a>
+    </div>
+
+    <dl class="mt-10 flex flex-wrap gap-x-10 gap-y-4">
+      <div>
+        <dt class="text-sm text-gray-500 dark:text-gray-400">구성원</dt>
+        <dd class="mt-0.5 text-2xl font-semibold tabular-nums">{memberCount}</dd>
+      </div>
+      <div>
+        <dt class="text-sm text-gray-500 dark:text-gray-400">진행 중인 연구</dt>
+        <dd class="mt-0.5 text-2xl font-semibold tabular-nums">{projects.length}</dd>
+      </div>
+      <div>
+        <dt class="text-sm text-gray-500 dark:text-gray-400">논문</dt>
+        <dd class="mt-0.5 text-2xl font-semibold tabular-nums">{publications.length}</dd>
+      </div>
+    </dl>
+  </section>
+
+  {/* ── 연구 ───────────────────────────────────────────── */}
+  <section class="py-12">
+    <div class="flex items-baseline justify-between">
+      <h2 class="text-2xl font-bold tracking-tight">연구</h2>
+      <a href="/research" class="link text-sm">전체 보기 →</a>
+    </div>
+
+    <div class="mt-6">
+      {
+        projects.length === 0 ? (
+          <EmptyState
+            title="공개된 연구 프로젝트가 없습니다"
+            hint="content/research/<slug>/index.md 를 만들면 여기에 표시됩니다."
+            command="pnpm new:project"
+          />
+        ) : (
+          <div class="grid gap-4 sm:grid-cols-2">
+            {projects.map((project) => (
+              <ProjectCard project={project} />
+            ))}
+          </div>
+        )
+      }
+    </div>
+  </section>
+
+  {/* ── 논문 · 소식 ────────────────────────────────────── */}
+  <div class="grid gap-12 border-t border-gray-200 py-12 lg:grid-cols-2 dark:border-gray-800">
+    <section>
+      <div class="flex items-baseline justify-between">
+        <h2 class="text-2xl font-bold tracking-tight">논문</h2>
+        <a href="/publications" class="link text-sm">전체 보기 →</a>
+      </div>
+      <div class="mt-4">
+        {
+          publications.length === 0 ? (
+            <EmptyState
+              title="등록된 논문이 없습니다"
+              hint="content/publications/ 에 추가하세요."
+              command="pnpm new:publication"
+            />
+          ) : (
+            publications.map((publication) => (
+              <PublicationItem publication={publication} members={members} />
+            ))
+          )
+        }
+      </div>
+    </section>
+
+    <section>
+      <div class="flex items-baseline justify-between">
+        <h2 class="text-2xl font-bold tracking-tight">소식</h2>
+        <a href="/news" class="link text-sm">전체 보기 →</a>
+      </div>
+      <div class="mt-4">
+        {
+          news.length === 0 ? (
+            <EmptyState title="소식이 없습니다" hint="content/news/ 에 추가하세요." />
+          ) : (
+            news.map((item) => <NewsItemCard item={item} />)
+          )
+        }
+      </div>
+    </section>
+  </div>
+</PublicLayout>

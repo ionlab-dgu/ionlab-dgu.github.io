@@ -4,17 +4,26 @@
  * lab-os design tokens (Tailwind v4 CSS-first config).
  * Change brand colors here — no tailwind.config.js needed.
  */
+/*
+ * 브랜드 골드. 기준값은 기존 랩 홈페이지의 메인 컬러 #f1c232 = brand-400.
+ *
+ * ⚠️ 대비 때문에 역할이 나뉩니다 (임의로 바꾸지 마세요):
+ *   - brand-400 (#f1c232)은 흰 배경 대비가 1.68:1 뿐입니다.
+ *     → 텍스트 색으로 쓰면 안 되고, **어두운 글씨를 얹는 채움색**으로만 씁니다.
+ *   - 라이트모드 링크·강조 텍스트: brand-700 (#8e6e00, 흰 배경 대비 4.79:1 ✓)
+ *   - 다크모드 링크·강조 텍스트: brand-300 (#f5cf69, 검정 배경 대비 13.2:1 ✓)
+ */
 @theme {
-  --color-brand-50: oklch(0.97 0.014 254);
-  --color-brand-100: oklch(0.93 0.032 254);
-  --color-brand-200: oklch(0.87 0.06 254);
-  --color-brand-300: oklch(0.78 0.096 254);
-  --color-brand-400: oklch(0.68 0.13 254);
-  --color-brand-500: oklch(0.6 0.15 254);
-  --color-brand-600: oklch(0.52 0.15 254);
-  --color-brand-700: oklch(0.44 0.13 254);
-  --color-brand-800: oklch(0.37 0.1 254);
-  --color-brand-900: oklch(0.31 0.075 254);
+  --color-brand-50: oklch(0.975 0.022 89.2);
+  --color-brand-100: oklch(0.945 0.05 89.2);
+  --color-brand-200: oklch(0.9 0.095 89.2);
+  --color-brand-300: oklch(0.868 0.128 89.2);
+  --color-brand-400: oklch(0.833 0.157 89.2);
+  --color-brand-500: oklch(0.76 0.145 89.2);
+  --color-brand-600: oklch(0.66 0.135 89.2);
+  --color-brand-700: oklch(0.555 0.115 89.2);
+  --color-brand-800: oklch(0.47 0.095 89.2);
+  --color-brand-900: oklch(0.4 0.078 89.2);
 
   --font-sans:
     'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, 'Segoe UI',
@@ -48,7 +57,12 @@
   }
 
   .link {
-    @apply text-brand-600 underline-offset-2 hover:underline dark:text-brand-400;
+    @apply text-brand-700 dark:text-brand-300 underline-offset-2 hover:underline;
+  }
+
+  /* primary 버튼: 골드 채움 + 거의 검정 글씨 (흰 글씨는 대비가 안 나옵니다) */
+  .btn-primary {
+    @apply bg-brand-400 hover:bg-brand-500 rounded-lg px-5 py-2.5 text-sm font-medium text-gray-950 transition-colors;
   }
 }
 

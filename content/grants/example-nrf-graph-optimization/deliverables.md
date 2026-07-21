@@ -1,6 +1,6 @@
 ---
 type: deliverables
-grant: example-nrf-young-researcher
+grant: example-nrf-graph-optimization
 ---
 
 # 산출물 의무 및 달성 현황
@@ -15,4 +15,4 @@ grant: example-nrf-young-researcher
 
 ## 달성 목록
 
-- [example-2026-neurips-subject-invariant](../../publications/example-2026-neurips-subject-invariant.md) — 국제학술대회 (심사 중)
+- [example-2026-neurips-efficient-gnn](../../publications/example-2026-neurips-efficient-gnn.md) — 국제학술대회 (심사 중)

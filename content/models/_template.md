@@ -6,11 +6,11 @@
 slug: # 파일명과 동일
 name: # 모델 이름
 task: # 무슨 문제를 푸는가
-architecture: # 예: 4-layer CNN + HSIC penalty
+architecture: # 예: 3-layer GraphSAGE + 상한 기반 엣지 선택
 trained_on: [] # dataset slug 목록
 checkpoint: # 체크포인트 위치 (서버 경로 / HF Hub URL)
 code: # 학습 코드 저장소 URL + commit
-metrics: {} # 예: {accuracy: 0.72, note: 'leave-one-subject-out 평균'}
+metrics: {} # 예: {accuracy: 0.78, latency_ms: 41, note: '3시드 평균'}
 added: # YYYY-MM-DD
 maintainer: # member id
 used_by: [] # 이 모델을 쓰는 프로젝트 slug 목록

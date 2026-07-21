@@ -1,0 +1,28 @@
+---
+type: reading_list
+project: example-efficient-gnn-inference
+---
+
+# 읽은 논문
+
+| 날짜 | 논문 | 한 줄 요약 | 우리와의 관계 |
+| --- | --- | --- | --- |
+| 2026-07-10 | Hamilton et al., Inductive Representation Learning on Large Graphs (GraphSAGE), NeurIPS 2017 | 이웃을 샘플링해 대규모 그래프에서 귀납적으로 학습 | 주 베이스라인. 샘플링을 무작위로 두는 점이 우리의 출발점 |
+| 2026-07-03 | TODO: 저자, 제목, venue | TODO | TODO |
+
+## 읽을 것
+
+- [ ] TODO: 스펙트럼 보존 그래프 희소화(spectral sparsification) 이론 논문
+- [ ] TODO: 엣지 기기에서의 GNN 추론 서베이
+
+## 깊게 본 논문
+
+### Inductive Representation Learning on Large Graphs (GraphSAGE)
+
+- **문제**: 전체 그래프를 한 번에 올릴 수 없을 만큼 큰 그래프에서, 학습 때 못 본 노드까지 다뤄야 한다.
+- **기여**: 이웃을 고정 개수로 샘플링해 집계하는 귀납적 프레임워크를 제시.
+- **방법**: 층마다 이웃을 k개 샘플링하고 mean/LSTM/pool 집계기로 표현을 갱신.
+- **한계**: 샘플 수 k를 줄이면 비용은 줄지만 정확도가 얼마나 떨어질지에 대한 보장이 없다.
+  k는 사실상 경험적으로 정하는 하이퍼파라미터다.
+- **우리에게**: 바로 이 지점이 문제의식이다. 우리는 k를 튜닝 대상이 아니라
+  **예산 제약**으로 두고, 그 제약 아래에서 어떤 이웃을 남길지를 최적화한다.

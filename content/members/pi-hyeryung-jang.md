@@ -6,13 +6,15 @@ role: pi
 cohort: 2024-03 # TODO: 실제 부임 연월로 수정
 advisor: null
 projects:
-  - example-neural-decoding
+  - example-efficient-gnn-inference
 grants:
-  - grant_slug: example-nrf-young-researcher
+  - grant_slug: example-nrf-graph-optimization
     participation_pct: 100
 interests:
-  - 'TODO: 관심 주제 1'
-  - 'TODO: 관심 주제 2'
+  - Graph-based Learning & Inference
+  - Optimization for Efficient AI
+  - Intelligent Networks
+  - Generative Models
 github: # TODO: GitHub 사용자명
 email: # TODO: pi@dongguk.edu
 photo: # TODO: /images/members/pi-hyeryung-jang.jpg

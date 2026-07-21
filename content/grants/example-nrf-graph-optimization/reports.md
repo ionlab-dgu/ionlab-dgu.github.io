@@ -1,6 +1,6 @@
 ---
 type: reports
-grant: example-nrf-young-researcher
+grant: example-nrf-graph-optimization
 ---
 
 # 보고서 일정

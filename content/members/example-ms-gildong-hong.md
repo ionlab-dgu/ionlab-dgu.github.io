@@ -7,18 +7,18 @@ role: ms
 cohort: 2026-03
 advisor: pi-hyeryung-jang
 projects:
-  - example-neural-decoding
+  - example-efficient-gnn-inference
 grants:
-  - grant_slug: example-nrf-young-researcher
+  - grant_slug: example-nrf-graph-optimization
     participation_pct: 70
 interests:
-  - neural decoding
-  - representation learning
+  - graph neural networks
+  - efficient inference
 github: example-gildong
 email: gildong@example.com
 photo:
 homepage: https://example.com/gildong
 ---
 
-석사과정 1년차. 신경 신호에서 의도를 디코딩하는 문제에 관심이 있으며,
-표현 학습 관점에서 개인차(inter-subject variability)를 다루는 방법을 찾고 있습니다.
+석사과정 1년차. 대규모 그래프에서 학습·추론 비용을 줄이는 문제에 관심이 있으며,
+정확도를 얼마나 포기하는지 미리 말할 수 있는 방법을 찾고 있습니다.
