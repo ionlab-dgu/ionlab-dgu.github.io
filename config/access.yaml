@@ -1,0 +1,66 @@
+# 접근 권한 스펙. Phase 1(현재)에서는 문서일 뿐이고,
+# Phase 2에서 src/lib/auth.ts 가 이 파일을 읽어 실제 게이팅을 합니다.
+#
+# 인증 방식(Phase 2): GitHub OAuth → ionlab-dgu org 멤버십 검증 → role 매핑.
+
+auth:
+  provider: github_oauth
+  org: ionlab-dgu
+  # org 멤버가 아니면 internal 라우트 전체 차단
+  require_org_membership: true
+  # Phase 1: 인증 미구현. true면 모든 internal 페이지가 "인증 필요" 스텁을 렌더.
+  stub_mode: true
+
+# GitHub 사용자명 → 랩 role 매핑.
+# member 파일(content/members/*.md)의 github 필드와 교차 검증합니다.
+role_mapping:
+  pi:
+    - 'TODO: pi-github-username'
+  admin: [] # PI 대행(랩 매니저 등)
+  # 그 외 org 멤버는 기본 role = member
+
+# 라우트별 최소 권한.
+# public  = 누구나
+# member  = 인증된 랩 구성원
+# pi      = PI/admin 전용
+# owner   = 본인 것만 (자기 데이터에 한해 member도 접근)
+routes:
+  '/': public
+  '/members': public
+  '/members/*': public
+  '/research': public
+  '/research/*': public
+  '/publications': public
+  '/news': public
+  '/handbook': public
+  '/join': public
+
+  '/internal': member
+  '/internal/attendance': member
+  '/internal/calendar': member
+  '/internal/deadlines': member
+  '/internal/research': member
+  '/internal/research/*': member
+  '/internal/grants': member
+  '/internal/grants/*': member
+  '/internal/meetings': member
+  '/internal/handbook': member
+  '/internal/one-on-ones': owner # 본인 것 + PI만
+
+# 콘텐츠 단위 규칙 (라우트와 별개로 loader가 적용).
+content_rules:
+  # .private/ 오버레이에서 온 모든 콘텐츠는 기본적으로 member 이상
+  private_overlay_default: member
+  # 1:1 노트는 대상 본인과 PI만
+  one_on_ones: owner
+  # 미팅 노트는 프로젝트 참여자 + PI (Phase 2에서 세분화)
+  meeting_notes: member
+  # 과제 예산 세부는 PI만
+  grant_budget: pi
+
+# 개인정보 보호 원칙 (코드로 강제하지는 않지만 리뷰 기준):
+principles:
+  - 출결 데이터로 통계·랭킹·리더보드를 만들지 않는다 (감시 방지)
+  - 출결 개인 로그는 본인만 열람한다
+  - 1:1 노트는 절대 public 빌드에 포함되지 않는다
+  - public 빌드는 .private/ 없이도 성공해야 한다

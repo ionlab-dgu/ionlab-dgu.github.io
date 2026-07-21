@@ -1,0 +1,82 @@
+# 관심 학회 데드라인 (aideadlines 스타일의 subset — 우리가 실제로 낼 곳만).
+#
+# ⚠️ 아래 날짜는 예년 패턴을 바탕으로 한 **초안**입니다.
+#    투고를 결정하면 반드시 공식 CFP에서 확인하고 이 파일을 갱신하세요.
+#    확인한 사람은 verified_by / verified_on 을 채웁니다.
+#
+# 시간대는 모두 AoE(Anywhere on Earth) 기준으로 적습니다.
+# 대시보드는 D-30 이내를 강조 표시합니다.
+
+conferences:
+  - name: NeurIPS
+    full_name: Conference on Neural Information Processing Systems
+    year: 2027
+    abstract_deadline: 2027-05-11
+    deadline: 2027-05-15
+    timezone: AoE
+    notification: 2027-09-18
+    conference_date: 2027-12-06
+    location: 'TBA'
+    url: https://neurips.cc
+    tags: [ml]
+    verified_by: # 공식 CFP 확인한 member id
+    verified_on: # YYYY-MM-DD
+
+  - name: ICLR
+    full_name: International Conference on Learning Representations
+    year: 2027
+    abstract_deadline: 2026-09-19
+    deadline: 2026-09-24
+    timezone: AoE
+    notification: 2027-01-22
+    conference_date: 2027-04-25
+    location: 'TBA'
+    url: https://iclr.cc
+    tags: [ml]
+    verified_by:
+    verified_on:
+
+  - name: ICML
+    full_name: International Conference on Machine Learning
+    year: 2027
+    abstract_deadline: 2027-01-22
+    deadline: 2027-01-28
+    timezone: AoE
+    notification: 2027-05-01
+    conference_date: 2027-07-11
+    location: 'TBA'
+    url: https://icml.cc
+    tags: [ml]
+    verified_by:
+    verified_on:
+
+  - name: AISTATS
+    full_name: International Conference on Artificial Intelligence and Statistics
+    year: 2027
+    abstract_deadline:
+    deadline: 2026-10-08
+    timezone: AoE
+    notification: 2027-01-20
+    conference_date: 2027-05-02
+    location: 'TBA'
+    url: https://aistats.org
+    tags: [ml, stats]
+    verified_by:
+    verified_on:
+
+  - name: UAI
+    full_name: Conference on Uncertainty in Artificial Intelligence
+    year: 2027
+    abstract_deadline:
+    deadline: 2027-02-10
+    timezone: AoE
+    notification: 2027-05-01
+    conference_date: 2027-08-01
+    location: 'TBA'
+    url: https://auai.org
+    tags: [ml, probabilistic]
+    verified_by:
+    verified_on:
+
+  # TODO: 국내 학회(한국인공지능학회, 대한전자공학회 등) 및 도메인 저널 추가
+  # 저널은 상시 투고이므로 여기 대신 각 프로젝트 index.md의 target_venue로 관리

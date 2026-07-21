@@ -1,0 +1,44 @@
+# Google Calendar 연동 설정.
+# 원칙: GCal이 primary(쓰기), 사이트는 read-only 표시만 합니다.
+#
+# ical_url 얻는 법:
+#   GCal → 캘린더 설정 → "캘린더 통합" → 비공개 주소(iCal 형식) 또는 공개 주소
+#   - 공개 캘린더면 https://calendar.google.com/calendar/ical/<ID>/public/basic.ics
+#   - 비공개면 secret 주소를 쓰되, 절대 이 파일에 넣지 말고
+#     env(GCAL_ICAL_<KEY>)로 주입하세요. (env_var 필드 참고)
+
+fetch:
+  # build  = 빌드 시점에 fetch (정적 사이트, 갱신은 재빌드 필요)
+  # runtime = 브라우저에서 fetch (Phase 2, SSR/프록시 필요)
+  mode: build
+  timeout_ms: 8000
+  # fetch 실패해도 빌드는 성공해야 함 (empty state로 렌더)
+  fail_on_error: false
+
+calendars:
+  - key: lab-general
+    label: 랩 일정
+    color: brand
+    description: 그룹 미팅, 세미나, 랩 이벤트
+    gcal_id: 'TODO: xxxxx@group.calendar.google.com'
+    ical_url: '' # 공개 캘린더면 여기, 비공개면 아래 env_var
+    env_var: GCAL_ICAL_LAB_GENERAL
+    visibility: internal # public | internal
+
+  - key: deadlines
+    label: 데드라인
+    color: red
+    description: 과제 리포트·논문 투고 마감
+    gcal_id: 'TODO: xxxxx@group.calendar.google.com'
+    ical_url: ''
+    env_var: GCAL_ICAL_DEADLINES
+    visibility: internal
+
+  - key: seminars
+    label: 세미나
+    color: blue
+    description: 초청 강연·리딩 그룹 (공개 가능)
+    gcal_id: 'TODO: xxxxx@group.calendar.google.com'
+    ical_url: ''
+    env_var: GCAL_ICAL_SEMINARS
+    visibility: public

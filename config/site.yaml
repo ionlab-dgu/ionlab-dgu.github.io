@@ -1,0 +1,39 @@
+# 사이트 전역 메타데이터. 사이트 제목·푸터·연락처는 모두 여기서 읽습니다.
+# 값을 바꾸면 재빌드만 하면 반영됩니다.
+
+lab:
+  name_ko: ION Lab
+  name_en: ION Lab
+  tagline_ko: 'TODO: 한 줄 소개 (예: 지능형 신호·데이터 연구실)'
+  tagline_en: 'TODO: one-line English tagline'
+  university_ko: 동국대학교
+  university_en: Dongguk University
+  department_ko: 'TODO: 학과명'
+  department_en: 'TODO: Department name'
+  address_ko: 'TODO: 서울특별시 중구 필동로1길 30, 동국대학교 OOO관 OOO호'
+  room: 'TODO: OOO관 OOO호'
+
+pi:
+  member_id: pi-hyeryung-jang # content/members/<id>.md 와 일치해야 함
+  name_ko: 장혜령
+  name_en: Hyeryung Jang
+  email: 'TODO: pi@dongguk.edu'
+
+contact:
+  email: 'TODO: lab@dongguk.edu'
+  github_org: ionlab-dgu
+
+site:
+  url: https://ionlab-dgu.github.io
+  locale_default: ko
+  locales: [ko, en]
+  # 홈 화면 상단 히어로에 표시할 문구
+  hero_headline_ko: 'TODO: 홈 히어로 헤드라인'
+  hero_body_ko: 'TODO: 두세 문장으로 연구실이 무엇을 하는지'
+
+# 푸터/멤버 카드에서 쓰는 외부 링크. 비워두면 렌더링에서 생략됩니다.
+links:
+  github: https://github.com/ionlab-dgu
+  scholar: ''
+  twitter: ''
+  linkedin: ''

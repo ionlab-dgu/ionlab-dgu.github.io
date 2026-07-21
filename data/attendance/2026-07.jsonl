@@ -1,0 +1,4 @@
+{"user":"example-ms-gildong-hong","action":"checkin","at":"2026-07-21T09:12:03+09:00"}
+{"user":"example-ms-gildong-hong","action":"break_out","at":"2026-07-21T12:30:00+09:00","note":"점심"}
+{"user":"example-ms-gildong-hong","action":"break_in","at":"2026-07-21T13:24:11+09:00"}
+{"user":"pi-hyeryung-jang","action":"remote","at":"2026-07-21T10:00:00+09:00","note":"재택"}

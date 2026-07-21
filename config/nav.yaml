@@ -1,0 +1,38 @@
+# 네비게이션 정의. label은 한국어 기준, href는 사이트 루트 기준 절대경로.
+# 항목을 추가하려면 해당 경로의 페이지(src/pages/...)가 존재해야 합니다.
+
+public:
+  - label: 홈
+    href: /
+  - label: 연구
+    href: /research
+  - label: 논문
+    href: /publications
+  - label: 구성원
+    href: /members
+  - label: 소식
+    href: /news
+  - label: 핸드북
+    href: /handbook
+  - label: 합류하기
+    href: /join
+
+internal:
+  - label: 대시보드
+    href: /internal
+  - label: 출결
+    href: /internal/attendance
+  - label: 캘린더
+    href: /internal/calendar
+  - label: 데드라인
+    href: /internal/deadlines
+  - label: 연구
+    href: /internal/research
+  - label: 과제
+    href: /internal/grants
+  - label: 미팅 노트
+    href: /internal/meetings
+  - label: 1:1
+    href: /internal/one-on-ones
+  - label: 핸드북
+    href: /internal/handbook
