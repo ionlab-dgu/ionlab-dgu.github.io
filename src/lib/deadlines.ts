@@ -9,7 +9,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import yaml from 'js-yaml';
+import { parseYaml } from './yaml';
 import { CONTENT_DIR, contentRoots } from './paths';
 import { getGrants } from './content';
 import type { Conference, DeadlineItem } from './types';
@@ -30,7 +30,7 @@ export function getConferences(): Conference[] {
   for (const file of files) {
     try {
       const raw = fs.readFileSync(file, 'utf-8');
-      const parsed = yaml.load(raw) as { conferences?: Conference[] } | null;
+      const parsed = parseYaml<{ conferences?: Conference[] } | null>(raw);
       if (parsed?.conferences?.length) all.push(...parsed.conferences);
     } catch {
       // 없으면 그냥 건너뜁니다.

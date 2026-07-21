@@ -1,0 +1,47 @@
+---
+import InternalLayout from '../../layouts/InternalLayout.astro';
+import PageHeader from '../../components/common/PageHeader.astro';
+import MeetingNoteItem from '../../components/internal/MeetingNoteItem.astro';
+import EmptyState from '../../components/common/EmptyState.astro';
+import { getMeetingFeed } from '../../lib/content';
+
+const feed = getMeetingFeed();
+
+// 연월별 그룹
+const byMonth = new Map<string, typeof feed>();
+for (const item of feed) {
+  const month = String(item.doc.data.date ?? '').slice(0, 7) || '날짜 미상';
+  if (!byMonth.has(month)) byMonth.set(month, []);
+  byMonth.get(month)!.push(item);
+}
+const months = [...byMonth.entries()];
+---
+
+<InternalLayout title="미팅 노트">
+  <PageHeader
+    title="미팅 노트"
+    description="주간 진행, 과제, 리딩 그룹, 1:1 노트를 한 피드로 모았습니다."
+  />
+
+  {
+    feed.length === 0 ? (
+      <EmptyState
+        title="미팅 노트가 없습니다"
+        hint="프로젝트 폴더의 meetings/ 아래에 YYYY-MM-DD-weekly.md 형식으로 추가하세요. 1:1 노트는 lab-os-private 저장소에 둡니다."
+      />
+    ) : (
+      <div class="max-w-3xl space-y-10">
+        {months.map(([month, items]) => (
+          <section>
+            <h2 class="mb-2 font-mono text-sm font-semibold text-gray-500 dark:text-gray-400">
+              {month}
+            </h2>
+            {items.map((item) => (
+              <MeetingNoteItem item={item} />
+            ))}
+          </section>
+        ))}
+      </div>
+    )
+  }
+</InternalLayout>

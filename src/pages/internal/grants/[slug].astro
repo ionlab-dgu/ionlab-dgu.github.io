@@ -1,0 +1,211 @@
+---
+import InternalLayout from '../../../layouts/InternalLayout.astro';
+import Prose from '../../../components/common/Prose.astro';
+import PublicationItem from '../../../components/public/PublicationItem.astro';
+import EmptyState from '../../../components/common/EmptyState.astro';
+import {
+  getGrants,
+  getResearchProjects,
+  getPublicationsByGrant,
+  getMembers,
+  displayName,
+} from '../../../lib/content';
+import { daysUntil, ddayBadge, ddayLabel, DEADLINE_KIND_LABEL } from '../../../lib/deadlines';
+import { filled } from '../../../lib/config';
+
+export function getStaticPaths() {
+  return getGrants().map((grant) => ({
+    params: { slug: grant.index.data.slug },
+    props: { grant },
+  }));
+}
+
+const { grant } = Astro.props;
+const g = grant.index.data;
+
+const STATUS_LABEL: Record<string, string> = {
+  planned: '예정',
+  active: '수행 중',
+  reporting: '보고 중',
+  closed: '종료',
+};
+
+const members = getMembers();
+const publications = getPublicationsByGrant(g.slug);
+const allProjects = getResearchProjects();
+const linked = (g.linked_research ?? [])
+  .map((slug) => allProjects.find((p) => p.index.data.slug === slug))
+  .filter(Boolean);
+
+const due = g.next_deadline?.due;
+const left = due ? daysUntil(due) : undefined;
+
+// 이 과제에 참여율이 기록된 멤버
+const participants = members
+  .map((m) => ({
+    member: m,
+    pct: (m.data.grants ?? []).find((x) => x.grant_slug === g.slug)?.participation_pct,
+  }))
+  .filter((x) => x.pct !== undefined);
+---
+
+<InternalLayout title={g.title_ko ?? g.slug}>
+  <a href="/internal/grants" class="link text-sm">← 과제</a>
+
+  <div class="mt-4 flex flex-wrap items-start justify-between gap-4">
+    <h1 class="max-w-3xl text-3xl font-bold tracking-tight">{g.title_ko ?? g.slug}</h1>
+    <div class="flex gap-2">
+      <span class="badge badge-neutral">{STATUS_LABEL[g.status] ?? g.status}</span>
+      {grant.index.source.private && <span class="badge badge-red">private</span>}
+    </div>
+  </div>
+
+  {
+    due && left !== undefined && (
+      <div
+        class:list={[
+          'mt-6 flex flex-wrap items-center gap-3 rounded-lg border px-4 py-3',
+          left <= 30
+            ? 'border-amber-300 bg-amber-50 dark:border-amber-700/60 dark:bg-amber-900/20'
+            : 'border-gray-200 dark:border-gray-800',
+        ]}
+      >
+        <span class:list={['badge tabular-nums', ddayBadge(left)]}>{ddayLabel(left)}</span>
+        <span class="font-medium">
+          {DEADLINE_KIND_LABEL[g.next_deadline!.kind] ?? g.next_deadline!.kind}
+        </span>
+        <span class="text-gray-600 dark:text-gray-400">{due}</span>
+      </div>
+    )
+  }
+
+  <dl class="mt-6 flex flex-wrap gap-x-8 gap-y-3 text-sm">
+    {
+      filled(g.funder) && (
+        <div>
+          <dt class="text-gray-500 dark:text-gray-400">지원기관</dt>
+          <dd class="mt-0.5">{g.funder}</dd>
+        </div>
+      )
+    }
+    {
+      filled(g.grant_number) && (
+        <div>
+          <dt class="text-gray-500 dark:text-gray-400">과제번호</dt>
+          <dd class="mt-0.5 font-mono">{g.grant_number}</dd>
+        </div>
+      )
+    }
+    {
+      g.period?.start && (
+        <div>
+          <dt class="text-gray-500 dark:text-gray-400">기간</dt>
+          <dd class="mt-0.5">
+            {g.period.start} ~ {g.period.end ?? ''}
+          </dd>
+        </div>
+      )
+    }
+    {
+      g.pi && (
+        <div>
+          <dt class="text-gray-500 dark:text-gray-400">PI</dt>
+          <dd class="mt-0.5">{displayName(g.pi, members)}</dd>
+        </div>
+      )
+    }
+  </dl>
+
+  {
+    participants.length > 0 && (
+      <section class="mt-8">
+        <h2 class="text-sm font-semibold text-gray-500 dark:text-gray-400">참여 연구원</h2>
+        <ul class="mt-2 flex flex-wrap gap-3 text-sm">
+          {participants.map(({ member, pct }) => (
+            <li class="flex items-baseline gap-1.5 rounded-md border border-gray-200 px-2.5 py-1 dark:border-gray-800">
+              <a href={`/members/${member.data.id}`} class="link">
+                {member.data.name_ko || member.data.name_en || member.data.id}
+              </a>
+              <span class="text-gray-500 tabular-nums dark:text-gray-400">{pct}%</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )
+  }
+
+  {
+    linked.length > 0 && (
+      <section class="mt-8">
+        <h2 class="text-sm font-semibold text-gray-500 dark:text-gray-400">지원하는 연구</h2>
+        <ul class="mt-2 space-y-1 text-sm">
+          {linked.map((p) => (
+            <li>
+              <a href={`/internal/research/${p!.index.data.slug}`} class="link">
+                {p!.index.data.title ?? p!.index.data.slug}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )
+  }
+
+  <div class="mt-10 max-w-3xl border-t border-gray-200 pt-8 dark:border-gray-800">
+    <Prose body={grant.index.body} />
+  </div>
+
+  {
+    grant.deliverables && (
+      <section class="mt-12 max-w-3xl border-t border-gray-200 pt-8 dark:border-gray-800">
+        <Prose body={grant.deliverables.body} />
+      </section>
+    )
+  }
+
+  {
+    grant.reports && (
+      <section class="mt-12 max-w-3xl border-t border-gray-200 pt-8 dark:border-gray-800">
+        <Prose body={grant.reports.body} />
+      </section>
+    )
+  }
+
+  <section class="mt-12 max-w-3xl border-t border-gray-200 pt-8 dark:border-gray-800">
+    <h2 class="mb-2 text-xl font-bold tracking-tight">귀속 논문</h2>
+    <p class="mb-4 text-sm text-gray-500 dark:text-gray-400">
+      논문 frontmatter의 attributed_grants 에 <code>{g.slug}</code> 가 있는 항목이 자동으로 모입니다.
+    </p>
+    {
+      publications.length === 0 ? (
+        <EmptyState
+          title="귀속된 논문이 없습니다"
+          hint={`논문 파일의 attributed_grants 에 ${g.slug} 를 추가하면 여기와 실적 집계에 반영됩니다.`}
+        />
+      ) : (
+        publications.map((publication) => (
+          <PublicationItem publication={publication} members={members} />
+        ))
+      )
+    }
+  </section>
+
+  {
+    grant.meetings.length > 0 && (
+      <section class="mt-12 max-w-3xl border-t border-gray-200 pt-8 dark:border-gray-800">
+        <h2 class="mb-4 text-xl font-bold tracking-tight">미팅 노트</h2>
+        <div class="space-y-10">
+          {grant.meetings.map((note) => (
+            <article>
+              <div class="mb-3 flex flex-wrap items-baseline gap-3 border-b border-gray-200 pb-2 dark:border-gray-800">
+                <time class="font-mono text-sm font-semibold">{note.data.date}</time>
+                {note.source.private && <span class="badge badge-red">private</span>}
+              </div>
+              <Prose body={note.body} />
+            </article>
+          ))}
+        </div>
+      </section>
+    )
+  }
+</InternalLayout>

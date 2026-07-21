@@ -5,14 +5,14 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import yaml from 'js-yaml';
+import { parseYaml } from './yaml';
 import { CONFIG_DIR } from './paths';
 
 function loadYaml<T>(filename: string, fallback: T): T {
   const file = path.join(CONFIG_DIR, filename);
   try {
     const raw = fs.readFileSync(file, 'utf-8');
-    const parsed = yaml.load(raw);
+    const parsed = parseYaml(raw);
     if (parsed == null || typeof parsed !== 'object') return fallback;
     return parsed as T;
   } catch (err) {

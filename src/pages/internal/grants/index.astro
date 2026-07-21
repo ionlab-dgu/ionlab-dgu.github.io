@@ -1,0 +1,90 @@
+---
+import InternalLayout from '../../../layouts/InternalLayout.astro';
+import PageHeader from '../../../components/common/PageHeader.astro';
+import EmptyState from '../../../components/common/EmptyState.astro';
+import { getGrants, displayName, getMembers } from '../../../lib/content';
+import { daysUntil, ddayBadge, ddayLabel, DEADLINE_KIND_LABEL } from '../../../lib/deadlines';
+import { filled } from '../../../lib/config';
+
+const grants = getGrants();
+const members = getMembers();
+
+const STATUS_LABEL: Record<string, string> = {
+  planned: '예정',
+  active: '수행 중',
+  reporting: '보고 중',
+  closed: '종료',
+};
+const STATUS_TONE: Record<string, string> = {
+  planned: 'badge-neutral',
+  active: 'badge-green',
+  reporting: 'badge-amber',
+  closed: 'badge-neutral',
+};
+---
+
+<InternalLayout title="과제">
+  <PageHeader
+    title="과제"
+    description="리포트 마감이 가까운 순입니다. 예산 금액의 정본은 학교 연구비 시스템이며, 여기서는 일정만 추적합니다."
+  />
+
+  {
+    grants.length === 0 ? (
+      <EmptyState
+        title="등록된 과제가 없습니다"
+        hint="content/grants/_template/ 을 복사해 새 폴더를 만드세요."
+        command="pnpm new:grant"
+      />
+    ) : (
+      <div class="space-y-4">
+        {grants.map((grant) => {
+          const g = grant.index.data;
+          const due = g.next_deadline?.due;
+          const left = due ? daysUntil(due) : undefined;
+          return (
+            <a
+              href={`/internal/grants/${g.slug}`}
+              class="card hover:border-brand-400 dark:hover:border-brand-500 block transition-colors"
+            >
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <h2 class="font-semibold">{g.title_ko ?? g.slug}</h2>
+                  <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    {[filled(g.funder), filled(g.grant_number)].filter(Boolean).join(' · ')}
+                  </p>
+                </div>
+                <span class:list={['badge shrink-0', STATUS_TONE[g.status] ?? 'badge-neutral']}>
+                  {STATUS_LABEL[g.status] ?? g.status}
+                </span>
+              </div>
+
+              <div class="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+                {g.period?.start && (
+                  <span class="text-gray-500 dark:text-gray-400">
+                    {g.period.start} ~ {g.period.end ?? ''}
+                  </span>
+                )}
+                {g.pi && (
+                  <span class="text-gray-500 dark:text-gray-400">
+                    PI {displayName(g.pi, members)}
+                  </span>
+                )}
+                {due && left !== undefined && (
+                  <span class="flex items-center gap-2">
+                    <span class="text-gray-500 dark:text-gray-400">
+                      {DEADLINE_KIND_LABEL[g.next_deadline!.kind] ?? g.next_deadline!.kind} {due}
+                    </span>
+                    <span class:list={['badge tabular-nums', ddayBadge(left)]}>
+                      {ddayLabel(left)}
+                    </span>
+                  </span>
+                )}
+              </div>
+            </a>
+          );
+        })}
+      </div>
+    )
+  }
+</InternalLayout>

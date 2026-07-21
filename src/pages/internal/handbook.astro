@@ -1,0 +1,104 @@
+---
+import InternalLayout from '../../layouts/InternalLayout.astro';
+import PageHeader from '../../components/common/PageHeader.astro';
+import Prose from '../../components/common/Prose.astro';
+import EmptyState from '../../components/common/EmptyState.astro';
+import { getHandbookPages } from '../../lib/content';
+
+// 내부 핸드북: visibility가 internal인 문서와 private 오버레이 문서까지 전부.
+const pages = getHandbookPages();
+
+const SECTION_LABEL: Record<string, string> = {
+  '': '개요',
+  onboarding: '온보딩',
+  policies: '정책',
+  tutorials: '튜토리얼',
+};
+const SECTION_ORDER = ['', 'onboarding', 'policies', 'tutorials'];
+
+const keys = [...new Set(pages.map((p) => p.data.section ?? ''))].sort(
+  (a, b) =>
+    (SECTION_ORDER.indexOf(a) + 1 || 99) - (SECTION_ORDER.indexOf(b) + 1 || 99),
+);
+const sections = keys.map((key) => ({
+  key,
+  label: SECTION_LABEL[key] ?? key,
+  pages: pages.filter((p) => (p.data.section ?? '') === key),
+}));
+
+const internalOnly = pages.filter((p) => p.data.visibility === 'internal' || p.source.private);
+---
+
+<InternalLayout title="핸드북">
+  <PageHeader
+    title="핸드북"
+    description="공개 핸드북에 내부 전용 문서를 더한 전체 목록입니다."
+  />
+
+  {
+    pages.length === 0 ? (
+      <EmptyState
+        title="핸드북 문서가 없습니다"
+        hint="content/handbook/ 아래에 마크다운을 추가하세요."
+      />
+    ) : (
+      <div class="lg:flex lg:gap-12">
+        <nav class="mb-10 shrink-0 lg:sticky lg:top-8 lg:mb-0 lg:h-fit lg:w-56">
+          <ul class="space-y-4 text-sm">
+            {sections.map((section) => (
+              <li>
+                <p class="font-semibold text-gray-500 dark:text-gray-400">{section.label}</p>
+                <ul class="mt-1.5 space-y-1">
+                  {section.pages.map((page) => (
+                    <li class="flex items-baseline gap-1.5">
+                      <a href={`#${page.data.slug}`} class="link">
+                        {page.data.title ?? page.data.slug}
+                      </a>
+                      {(page.data.visibility === 'internal' || page.source.private) && (
+                        <span class="text-xs text-gray-400">내부</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ul>
+          {internalOnly.length > 0 && (
+            <p class="mt-6 text-xs text-gray-500 dark:text-gray-400">
+              내부 전용 {internalOnly.length}건은 공개 핸드북에 나오지 않습니다.
+            </p>
+          )}
+        </nav>
+
+        <div class="min-w-0 max-w-3xl flex-1 space-y-16">
+          {sections.map((section) =>
+            section.pages.map((page) => (
+              <article id={page.data.slug} class="scroll-mt-8">
+                <div class="mb-4 border-b border-gray-200 pb-3 dark:border-gray-800">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <p class="text-xs tracking-wide text-gray-500 uppercase dark:text-gray-400">
+                      {section.label}
+                    </p>
+                    {page.data.visibility === 'internal' && (
+                      <span class="badge badge-blue">내부</span>
+                    )}
+                    {page.source.private && <span class="badge badge-red">private</span>}
+                  </div>
+                  <h2 class="mt-1 text-2xl font-bold tracking-tight">
+                    {page.data.title ?? page.data.slug}
+                  </h2>
+                  {page.data.updated && (
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      마지막 수정 {page.data.updated}
+                    </p>
+                  )}
+                </div>
+                <Prose body={page.body} />
+              </article>
+            )),
+          )}
+        </div>
+      </div>
+    )
+  }
+</InternalLayout>

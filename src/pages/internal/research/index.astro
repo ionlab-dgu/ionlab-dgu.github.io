@@ -1,0 +1,50 @@
+---
+import InternalLayout from '../../../layouts/InternalLayout.astro';
+import PageHeader from '../../../components/common/PageHeader.astro';
+import ProjectCard from '../../../components/public/ProjectCard.astro';
+import EmptyState from '../../../components/common/EmptyState.astro';
+import { getResearchProjects } from '../../../lib/content';
+
+// 내부 목록은 archived 와 private 오버레이 프로젝트까지 모두 보여줍니다.
+const projects = getResearchProjects();
+const archived = projects.filter((p) => p.index.data.status === 'archived');
+const active = projects.filter((p) => p.index.data.status !== 'archived');
+---
+
+<InternalLayout title="연구">
+  <PageHeader
+    title="연구"
+    description="공개 페이지와 달리 실험 로그·미팅 노트·아이디어까지 볼 수 있습니다."
+  />
+
+  {
+    projects.length === 0 ? (
+      <EmptyState
+        title="연구 프로젝트가 없습니다"
+        hint="content/research/_template/ 을 복사해 새 폴더를 만드세요."
+        command="pnpm new:project"
+      />
+    ) : (
+      <>
+        <div class="grid gap-4 sm:grid-cols-2">
+          {active.map((project) => (
+            <ProjectCard project={project} internal={true} />
+          ))}
+        </div>
+
+        {archived.length > 0 && (
+          <section class="mt-10">
+            <h2 class="mb-3 text-sm font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
+              보관됨
+            </h2>
+            <div class="grid gap-4 opacity-70 sm:grid-cols-2">
+              {archived.map((project) => (
+                <ProjectCard project={project} internal={true} />
+              ))}
+            </div>
+          </section>
+        )}
+      </>
+    )
+  }
+</InternalLayout>

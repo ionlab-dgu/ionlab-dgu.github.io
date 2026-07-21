@@ -1,0 +1,179 @@
+---
+import InternalLayout from '../../../layouts/InternalLayout.astro';
+import Prose from '../../../components/common/Prose.astro';
+import PublicationItem from '../../../components/public/PublicationItem.astro';
+import EmptyState from '../../../components/common/EmptyState.astro';
+import {
+  getResearchProjects,
+  getPublicationsByProject,
+  getMembers,
+  getGrants,
+  displayName,
+} from '../../../lib/content';
+import { filled } from '../../../lib/config';
+
+export function getStaticPaths() {
+  return getResearchProjects().map((project) => ({
+    params: { slug: project.index.data.slug },
+    props: { project },
+  }));
+}
+
+const { project } = Astro.props;
+const p = project.index.data;
+
+const STATUS_LABEL: Record<string, string> = {
+  idea: '구상',
+  active: '진행 중',
+  writing: '집필 중',
+  submitted: '심사 중',
+  accepted: '게재 확정',
+  paused: '중단',
+  archived: '보관',
+};
+const STATUS_TONE: Record<string, string> = {
+  idea: 'badge-neutral',
+  active: 'badge-green',
+  writing: 'badge-blue',
+  submitted: 'badge-amber',
+  accepted: 'badge-green',
+  paused: 'badge-neutral',
+  archived: 'badge-neutral',
+};
+
+const members = getMembers();
+const people = [p.lead, ...(p.collaborators ?? [])].filter(Boolean) as string[];
+const publications = getPublicationsByProject(p.slug);
+const allGrants = getGrants();
+const grants = (p.grants ?? [])
+  .map((slug) => allGrants.find((g) => g.index.data.slug === slug))
+  .filter(Boolean);
+
+// 부속 문서 탭 구성. 없는 문서는 항목 자체를 만들지 않습니다.
+const docs = [
+  { key: 'reading', label: '읽은 논문', doc: project.reading },
+  { key: 'experiments', label: '실험 로그', doc: project.experiments },
+  { key: 'datasets', label: '데이터', doc: project.datasets },
+  { key: 'ideas', label: '아이디어', doc: project.ideas },
+].filter((d) => d.doc);
+---
+
+<InternalLayout title={p.title ?? p.slug}>
+  <a href="/internal/research" class="link text-sm">← 연구</a>
+
+  <div class="mt-4 flex flex-wrap items-start justify-between gap-4">
+    <h1 class="max-w-3xl text-3xl font-bold tracking-tight">{p.title ?? p.slug}</h1>
+    <div class="flex gap-2">
+      <span class:list={['badge', STATUS_TONE[p.status] ?? 'badge-neutral']}>
+        {STATUS_LABEL[p.status] ?? p.status}
+      </span>
+      {project.index.source.private && <span class="badge badge-red">private</span>}
+    </div>
+  </div>
+
+  {filled(p.short) && <p class="mt-3 max-w-2xl text-gray-600 dark:text-gray-400">{p.short}</p>}
+
+  <dl class="mt-6 flex flex-wrap gap-x-8 gap-y-3 text-sm">
+    {
+      people.length > 0 && (
+        <div>
+          <dt class="text-gray-500 dark:text-gray-400">참여자</dt>
+          <dd class="mt-0.5">
+            {people.map((id, i) => (
+              <>
+                {i > 0 && ', '}
+                <a href={`/members/${id}`} class="link">
+                  {displayName(id, members)}
+                </a>
+              </>
+            ))}
+          </dd>
+        </div>
+      )
+    }
+    {
+      filled(p.target_venue) && (
+        <div>
+          <dt class="text-gray-500 dark:text-gray-400">목표 발표처</dt>
+          <dd class="mt-0.5">{p.target_venue}</dd>
+        </div>
+      )
+    }
+    {
+      grants.length > 0 && (
+        <div>
+          <dt class="text-gray-500 dark:text-gray-400">지원 과제</dt>
+          <dd class="mt-0.5">
+            {grants.map((g, i) => (
+              <>
+                {i > 0 && ', '}
+                <a href={`/internal/grants/${g!.index.data.slug}`} class="link">
+                  {g!.index.data.title_ko ?? g!.index.data.slug}
+                </a>
+              </>
+            ))}
+          </dd>
+        </div>
+      )
+    }
+    <div>
+      <dt class="text-gray-500 dark:text-gray-400">공개 페이지</dt>
+      <dd class="mt-0.5">
+        <a href={`/research/${p.slug}`} class="link">/research/{p.slug}</a>
+      </dd>
+    </div>
+  </dl>
+
+  <div class="mt-10 max-w-3xl border-t border-gray-200 pt-8 dark:border-gray-800">
+    <Prose body={project.index.body} />
+  </div>
+
+  {
+    docs.map((d) => (
+      <section class="mt-12 max-w-3xl border-t border-gray-200 pt-8 dark:border-gray-800">
+        <h2 class="mb-4 text-xl font-bold tracking-tight">{d.label}</h2>
+        <Prose body={d.doc!.body} />
+      </section>
+    ))
+  }
+
+  <section class="mt-12 max-w-3xl border-t border-gray-200 pt-8 dark:border-gray-800">
+    <h2 class="mb-4 text-xl font-bold tracking-tight">미팅 노트</h2>
+    {
+      project.meetings.length === 0 ? (
+        <EmptyState
+          title="미팅 노트가 없습니다"
+          hint={`content/research/${p.slug}/meetings/YYYY-MM-DD-weekly.md 형식으로 추가하세요. 발표한 학생이 미팅 당일에 씁니다.`}
+        />
+      ) : (
+        <div class="space-y-10">
+          {project.meetings.map((note) => (
+            <article>
+              <div class="mb-3 flex flex-wrap items-baseline gap-3 border-b border-gray-200 pb-2 dark:border-gray-800">
+                <time class="font-mono text-sm font-semibold">{note.data.date}</time>
+                {note.data.attendees && note.data.attendees.length > 0 && (
+                  <span class="text-sm text-gray-500 dark:text-gray-400">
+                    {note.data.attendees.map((a) => displayName(a, members)).join(', ')}
+                  </span>
+                )}
+                {note.source.private && <span class="badge badge-red">private</span>}
+              </div>
+              <Prose body={note.body} />
+            </article>
+          ))}
+        </div>
+      )
+    }
+  </section>
+
+  {
+    publications.length > 0 && (
+      <section class="mt-12 max-w-3xl border-t border-gray-200 pt-8 dark:border-gray-800">
+        <h2 class="mb-2 text-xl font-bold tracking-tight">관련 논문</h2>
+        {publications.map((publication) => (
+          <PublicationItem publication={publication} members={members} />
+        ))}
+      </section>
+    )
+  }
+</InternalLayout>

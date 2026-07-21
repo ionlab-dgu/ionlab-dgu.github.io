@@ -1,0 +1,53 @@
+---
+import InternalLayout from '../../layouts/InternalLayout.astro';
+import PageHeader from '../../components/common/PageHeader.astro';
+import PresenceWidget from '../../components/internal/PresenceWidget.astro';
+import TodaySchedule from '../../components/internal/TodaySchedule.astro';
+import DeadlineList from '../../components/internal/DeadlineList.astro';
+import MeetingNoteItem from '../../components/internal/MeetingNoteItem.astro';
+import EmptyState from '../../components/common/EmptyState.astro';
+import { getDeadlines, IMMINENT_DAYS } from '../../lib/deadlines';
+import { getMeetingFeed } from '../../lib/content';
+
+const imminent = getDeadlines({ withinDays: IMMINENT_DAYS });
+const meetings = getMeetingFeed(5);
+---
+
+<InternalLayout title="대시보드">
+  <PageHeader title="대시보드" />
+
+  <div class="grid gap-6 lg:grid-cols-2">
+    <PresenceWidget />
+    <TodaySchedule />
+
+    <section class="card">
+      <div class="flex items-baseline justify-between">
+        <h2 class="font-semibold">임박한 데드라인</h2>
+        <a href="/internal/deadlines" class="link text-sm">전체 →</a>
+      </div>
+      <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">D-{IMMINENT_DAYS} 이내</p>
+      <div class="mt-3">
+        <DeadlineList deadlines={imminent} />
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="flex items-baseline justify-between">
+        <h2 class="font-semibold">최근 미팅 노트</h2>
+        <a href="/internal/meetings" class="link text-sm">전체 →</a>
+      </div>
+      <div class="mt-3">
+        {
+          meetings.length === 0 ? (
+            <EmptyState
+              title="미팅 노트가 없습니다"
+              hint="content/research/<slug>/meetings/YYYY-MM-DD-weekly.md 형식으로 추가하세요."
+            />
+          ) : (
+            meetings.map((item) => <MeetingNoteItem item={item} />)
+          )
+        }
+      </div>
+    </section>
+  </div>
+</InternalLayout>

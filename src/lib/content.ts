@@ -16,6 +16,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
 import { contentRoots, relFromRoot } from './paths';
+import { matterOptions } from './yaml';
 import type {
   Dataset,
   Doc,
@@ -42,7 +43,7 @@ function isSkipped(name: string): boolean {
 function readDoc<T>(file: string, isPrivate: boolean): Doc<T> | null {
   try {
     const raw = fs.readFileSync(file, 'utf-8');
-    const { data, content } = matter(raw);
+    const { data, content } = matter(raw, matterOptions);
     return {
       data: data as T,
       body: content.trim(),
