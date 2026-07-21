@@ -1,0 +1,59 @@
+---
+/**
+ * 오늘 일정. Google Calendar가 정본이고 여기서는 읽기만 합니다.
+ * 캘린더가 설정되지 않았거나 fetch가 실패하면 empty state를 보여줍니다.
+ */
+import { fetchAllEvents, eventsOnDay, calendarMeta } from '../../lib/gcal';
+import { dayKey } from '../../lib/attendance';
+import EmptyState from '../common/EmptyState.astro';
+
+const today = dayKey();
+const all = await fetchAllEvents();
+const events = eventsOnDay(all, today);
+
+function timeLabel(iso: string, allDay: boolean): string {
+  if (allDay) return '종일';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleTimeString('ko-KR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Asia/Seoul',
+  });
+}
+---
+
+<section class="card">
+  <div class="flex items-baseline justify-between">
+    <h2 class="font-semibold">오늘 일정</h2>
+    <a href="/internal/calendar" class="link text-sm">캘린더 →</a>
+  </div>
+
+  <div class="mt-4">
+    {
+      events.length === 0 ? (
+        <EmptyState
+          title="오늘 등록된 일정이 없습니다"
+          hint="config/calendars.yaml 에 Google Calendar의 iCal 주소를 넣으면 여기에 표시됩니다."
+          icon="◷"
+        />
+      ) : (
+        <ul class="divide-y divide-gray-200 dark:divide-gray-800">
+          {events.map((e) => (
+            <li class="flex items-baseline gap-3 py-2.5">
+              <time class="w-14 shrink-0 font-mono text-sm text-gray-500 tabular-nums dark:text-gray-400">
+                {timeLabel(e.start, e.allDay)}
+              </time>
+              <div class="min-w-0">
+                <p class="truncate">{e.summary}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                  {[calendarMeta(e.calendar)?.label, e.location].filter(Boolean).join(' · ')}
+                </p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+  </div>
+</section>

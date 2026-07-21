@@ -1,0 +1,29 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import InternalNav from '../components/internal/InternalNav.astro';
+import AuthNotice from '../components/internal/AuthNotice.astro';
+import { guard } from '../lib/auth';
+
+interface Props {
+  title?: string;
+  description?: string;
+  /** owner 권한 페이지에서 대상자 id */
+  ownerId?: string;
+}
+
+const { title, description, ownerId } = Astro.props;
+const g = guard(Astro.url.pathname, ownerId);
+---
+
+<BaseLayout title={title} description={description} noindex={true}>
+  <InternalNav />
+  <main class="mx-auto w-full max-w-6xl flex-1 px-6 py-10">
+    {g.showAuthNotice && <AuthNotice />}
+    <slot />
+  </main>
+  <footer class="border-t border-gray-200 dark:border-gray-800">
+    <div class="mx-auto max-w-6xl px-6 py-6 text-xs text-gray-500">
+      내부 페이지 · 출결 데이터로 통계나 순위를 만들지 않습니다.
+    </div>
+  </footer>
+</BaseLayout>

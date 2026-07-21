@@ -1,0 +1,50 @@
+---
+import type { MeetingFeedItem } from '../../lib/content';
+import { displayName } from '../../lib/content';
+import { excerpt } from '../../lib/markdown';
+
+interface Props {
+  item: MeetingFeedItem;
+}
+
+const { item } = Astro.props;
+const d = item.doc.data;
+
+const TYPE_LABEL: Record<string, string> = {
+  weekly: '주간',
+  one_on_one: '1:1',
+  reading: '리딩',
+  grant: '과제',
+};
+
+const KIND_HREF: Record<string, (slug: string) => string | undefined> = {
+  research: (slug) => `/internal/research/${slug}`,
+  grant: (slug) => `/internal/grants/${slug}`,
+  seminar: () => undefined,
+  one_on_one: () => '/internal/one-on-ones',
+};
+
+const href = KIND_HREF[item.context.kind]?.(item.context.slug);
+const attendees = (d.attendees ?? []).map((a) => displayName(a));
+const type = d.type ?? (item.context.kind === 'seminar' ? 'reading' : undefined);
+---
+
+<article class="border-b border-gray-200 py-4 last:border-0 dark:border-gray-800">
+  <div class="flex flex-wrap items-baseline gap-2">
+    <time class="font-mono text-xs text-gray-500 dark:text-gray-400">{d.date}</time>
+    {type && <span class="badge badge-neutral">{TYPE_LABEL[type] ?? type}</span>}
+    {item.doc.source.private && <span class="badge badge-red">private</span>}
+  </div>
+
+  <p class="mt-1 font-medium">
+    {href ? <a href={href} class="link">{item.context.title}</a> : item.context.title}
+  </p>
+
+  {
+    attendees.length > 0 && (
+      <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{attendees.join(', ')}</p>
+    )
+  }
+
+  <p class="mt-1.5 text-sm text-gray-600 dark:text-gray-400">{excerpt(item.doc.body, 140)}</p>
+</article>

@@ -1,0 +1,31 @@
+---
+import type { Doc, NewsItem } from '../../lib/types';
+import { excerpt } from '../../lib/markdown';
+
+interface Props {
+  item: Doc<NewsItem>;
+  compact?: boolean;
+}
+
+const { item, compact = false } = Astro.props;
+const n = item.data;
+
+const CATEGORY_LABEL: Record<string, string> = {
+  paper: '논문',
+  award: '수상',
+  member: '구성원',
+  event: '행사',
+  grant: '과제',
+  misc: '소식',
+};
+---
+
+<article class="border-b border-gray-200 py-5 last:border-0 dark:border-gray-800">
+  <div class="flex flex-wrap items-baseline gap-3">
+    <time class="font-mono text-xs text-gray-500 dark:text-gray-400">{n.date}</time>
+    {n.category && <span class="badge badge-neutral">{CATEGORY_LABEL[n.category] ?? n.category}</span>}
+    {n.pinned && <span class="badge badge-blue">고정</span>}
+  </div>
+  <h3 class="mt-1.5 font-medium">{n.title ?? n.slug}</h3>
+  {!compact && <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{excerpt(item.body, 200)}</p>}
+</article>

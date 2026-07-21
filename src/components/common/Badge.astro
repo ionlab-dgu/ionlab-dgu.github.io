@@ -1,0 +1,14 @@
+---
+type Tone = 'neutral' | 'green' | 'blue' | 'amber' | 'red';
+
+interface Props {
+  tone?: Tone;
+  /** 이미 계산된 badge-* 클래스를 직접 넘길 때 (attendance/deadlines 헬퍼가 반환) */
+  class?: string;
+}
+
+const { tone = 'neutral', class: className } = Astro.props;
+const toneClass = className ?? `badge-${tone}`;
+---
+
+<span class:list={['badge', toneClass]}><slot /></span>

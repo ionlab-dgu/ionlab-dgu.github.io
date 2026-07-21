@@ -1,0 +1,55 @@
+---
+import { ddayBadge, ddayLabel } from '../../lib/deadlines';
+import EmptyState from '../common/EmptyState.astro';
+import type { DeadlineItem } from '../../lib/types';
+
+interface Props {
+  deadlines: DeadlineItem[];
+  emptyHint?: string;
+}
+
+const { deadlines, emptyHint } = Astro.props;
+
+const KIND_LABEL: Record<string, string> = {
+  conference: '학회',
+  conference_abstract: '학회',
+  grant_report: '과제',
+};
+---
+
+{
+  deadlines.length === 0 ? (
+    <EmptyState
+      title="다가오는 데드라인이 없습니다"
+      hint={
+        emptyHint ??
+        'content/conferences.yaml 에 관심 학회를 추가하거나, 과제 index.md 의 next_deadline 을 채우세요.'
+      }
+      icon="◷"
+    />
+  ) : (
+    <ul class="divide-y divide-gray-200 dark:divide-gray-800">
+      {deadlines.map((d) => {
+        const Tag = d.href || d.url ? 'a' : 'div';
+        return (
+          <li>
+            <Tag
+              href={d.href ?? d.url}
+              class="flex items-center justify-between gap-4 py-3 transition-colors hover:bg-gray-50 dark:hover:bg-gray-900"
+            >
+              <div class="min-w-0">
+                <p class="truncate font-medium">{d.label}</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                  {KIND_LABEL[d.kind]} · {d.sublabel} · {d.due}
+                </p>
+              </div>
+              <span class:list={['badge shrink-0 tabular-nums', ddayBadge(d.daysLeft)]}>
+                {ddayLabel(d.daysLeft)}
+              </span>
+            </Tag>
+          </li>
+        );
+      })}
+    </ul>
+  )
+}

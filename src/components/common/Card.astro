@@ -1,0 +1,21 @@
+---
+interface Props {
+  /** 지정하면 카드 전체가 링크가 됩니다. */
+  href?: string;
+  class?: string;
+}
+
+const { href, class: className } = Astro.props;
+const Tag = href ? 'a' : 'div';
+---
+
+<Tag
+  href={href}
+  class:list={[
+    'card block',
+    href && 'hover:border-brand-300 dark:hover:border-brand-700 transition-colors',
+    className,
+  ]}
+>
+  <slot />
+</Tag>

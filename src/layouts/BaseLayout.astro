@@ -1,0 +1,41 @@
+---
+/**
+ * 모든 페이지의 최상위 껍데기. head/meta/전역 CSS만 담당하고
+ * 헤더·푸터는 PublicLayout / InternalLayout 이 얹습니다.
+ */
+import '../styles/global.css';
+import { site, siteName } from '../lib/config';
+
+interface Props {
+  title?: string;
+  description?: string;
+  /** 검색 엔진 색인 제외 (internal 페이지) */
+  noindex?: boolean;
+}
+
+const { title, description, noindex = false } = Astro.props;
+
+const fullTitle = title ? `${title} · ${siteName}` : siteName;
+const metaDescription =
+  description ||
+  site.lab?.tagline_ko?.replace(/^TODO:\s*/, '') ||
+  `${siteName} — ${site.lab?.university_ko ?? ''}`;
+---
+
+<html lang={site.site?.locale_default ?? 'ko'} class="scroll-smooth">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{fullTitle}</title>
+    <meta name="description" content={metaDescription} />
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={metaDescription} />
+    <meta property="og:type" content="website" />
+  </head>
+  <body class="flex min-h-screen flex-col">
+    <slot />
+  </body>
+</html>
