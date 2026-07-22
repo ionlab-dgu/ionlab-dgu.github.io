@@ -8,12 +8,14 @@ interface Props {
   description?: string;
   /** 본문 최대 폭. 목록 페이지는 wide, 글은 prose. */
   width?: 'default' | 'wide';
+  /** title이 이미 완성된 문서 제목이면 true (홈처럼 풀네임을 직접 넣을 때) */
+  titleIsFull?: boolean;
 }
 
-const { title, description, width = 'default' } = Astro.props;
+const { title, description, width = 'default', titleIsFull = false } = Astro.props;
 ---
 
-<BaseLayout title={title} description={description}>
+<BaseLayout title={title} description={description} titleIsFull={titleIsFull}>
   <Nav />
   <main
     class:list={['mx-auto w-full flex-1 px-6 py-12', width === 'wide' ? 'max-w-6xl' : 'max-w-5xl']}

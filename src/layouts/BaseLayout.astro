@@ -11,11 +11,13 @@ interface Props {
   description?: string;
   /** 검색 엔진 색인 제외 (internal 페이지) */
   noindex?: boolean;
+  /** title이 이미 완성된 문서 제목이면 true — 사이트 이름을 덧붙이지 않습니다. */
+  titleIsFull?: boolean;
 }
 
-const { title, description, noindex = false } = Astro.props;
+const { title, description, noindex = false, titleIsFull = false } = Astro.props;
 
-const fullTitle = title ? `${title} · ${siteName}` : siteName;
+const fullTitle = title ? (titleIsFull ? title : `${title} · ${siteName}`) : siteName;
 const metaDescription =
   description ||
   site.lab?.tagline_ko?.replace(/^TODO:\s*/, '') ||

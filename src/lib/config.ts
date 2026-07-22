@@ -127,8 +127,31 @@ export const access = loadYaml<AccessConfig>('access.yaml', {
   content_rules: {},
 });
 
-/** 사이트 표시 이름. 레이아웃 title 등에 씁니다. */
+/** 사이트 표시 이름(짧은 형태). 네비게이션 브랜드·문서 제목 등에 씁니다. */
 export const siteName = site.lab?.name_ko || site.lab?.name_en || 'ION Lab';
+
+/**
+ * 풀네임. 약어(ION)가 무엇의 줄임말인지 처음 보는 사람에게 알려주기 위한 것이므로,
+ * 값이 없으면 빈 문자열이 아니라 undefined를 반환해 렌더 측에서 통째로 생략하게 합니다.
+ */
+export const siteFullName = filled(site.lab?.full_name_en);
+
+/**
+ * <title> 등에 쓸 "짧은 이름 — 풀네임 풀이" 형태.
+ *
+ * 풀네임("Intelligence and Optimization in Networks (ION) Lab")을 그대로 붙이면
+ * "ION Lab — ... (ION) Lab" 처럼 약어와 Lab이 중복됩니다.
+ * 그래서 괄호 약어와 끝의 Lab을 떼고 풀이 부분만 남깁니다.
+ */
+export const siteTitleWithFullName = (() => {
+  if (!siteFullName) return siteName;
+  const expanded = siteFullName
+    .replace(/\s*\([^)]*\)\s*/g, ' ') // (ION) 제거
+    .replace(/\s+Lab\s*$/i, '') // 끝의 Lab 제거
+    .replace(/\s+/g, ' ')
+    .trim();
+  return expanded ? `${siteName} — ${expanded}` : siteName;
+})();
 
 /** "TODO:" 로 시작하는 설정값은 아직 채워지지 않은 것으로 간주해 렌더에서 숨깁니다. */
 export function filled(value: string | undefined | null): string | undefined {

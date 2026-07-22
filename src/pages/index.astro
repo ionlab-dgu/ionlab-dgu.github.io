@@ -4,7 +4,7 @@ import ProjectCard from '../components/public/ProjectCard.astro';
 import PublicationItem from '../components/public/PublicationItem.astro';
 import NewsItemCard from '../components/public/NewsItem.astro';
 import EmptyState from '../components/common/EmptyState.astro';
-import { site, siteName, filled } from '../lib/config';
+import { site, siteName, siteFullName, siteTitleWithFullName, filled } from '../lib/config';
 import {
   getPublicResearchProjects,
   getPublications,
@@ -25,13 +25,20 @@ const members = publicOnly(getMembers());
 const memberCount = members.filter((m) => m.data.role !== 'alumni').length;
 ---
 
-<PublicLayout>
+<PublicLayout title={siteTitleWithFullName} titleIsFull={true}>
   {/* ── Hero ───────────────────────────────────────────── */}
   <section class="border-b border-gray-200 pb-12 dark:border-gray-800">
     <p class="text-brand-700 dark:text-brand-300 text-sm font-medium">
       {[university, department].filter(Boolean).join(' · ') || '동국대학교'}
     </p>
     <h1 class="mt-3 text-4xl font-bold tracking-tight sm:text-5xl">{siteName}</h1>
+
+    {
+      /* 약어 ION이 무엇의 줄임말인지 처음 보는 사람에게 바로 보이도록 제목 바로 아래에 둡니다. */
+      siteFullName && (
+        <p class="mt-2 text-lg text-gray-600 sm:text-xl dark:text-gray-400">{siteFullName}</p>
+      )
+    }
 
     {
       headline ? (

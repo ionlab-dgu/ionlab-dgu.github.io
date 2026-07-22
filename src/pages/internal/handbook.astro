@@ -32,11 +32,9 @@ const publicCount = pages.length - internalOnly.length;
 <InternalLayout title="핸드북 전체">
   <PageHeader
     title="핸드북 전체"
-    description={
-      internalOnly.length > 0
-        ? `공개 ${publicCount}건 + 내부 전용 ${internalOnly.length}건. 공개 핸드북의 상위집합이므로 여기서 전부 읽을 수 있습니다.`
-        : `공개 ${publicCount}건. 아직 내부 전용 문서가 없어 공개 핸드북과 내용이 같습니다.`
-    }
+    description={internalOnly.length > 0
+      ? `공개 ${publicCount}건 + 내부 전용 ${internalOnly.length}건. 공개 핸드북의 상위집합이므로 여기서 전부 읽을 수 있습니다.`
+      : `공개 ${publicCount}건. 아직 내부 전용 문서가 없어 공개 핸드북과 내용이 같습니다.`}
   >
     <a slot="actions" href="/handbook" class="link text-sm">공개 핸드북 보기 →</a>
   </PageHeader>
