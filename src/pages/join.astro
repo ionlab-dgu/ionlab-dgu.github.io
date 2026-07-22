@@ -19,7 +19,7 @@ const policies = handbook.filter((p) => p.data.section === 'policies');
 
   <div class="max-w-3xl space-y-10">
     <section>
-      <h2 class="text-xl font-bold tracking-tight">이런 분을 찾습니다</h2>
+      <h2 class="text-xl font-bold tracking-tight">Who we're looking for</h2>
       <p class="mt-3 text-gray-600 dark:text-gray-400">
         TODO: 어떤 배경·태도를 기대하는지 두세 문장으로 적어주세요. (예: 수학적 기초를 갖추고
         구현으로 검증하려는 사람, 막혔을 때 빨리 묻는 사람)
@@ -27,7 +27,7 @@ const policies = handbook.filter((p) => p.data.section === 'policies');
       {
         areas.length > 0 && (
           <>
-            <p class="mt-4 text-sm text-gray-500 dark:text-gray-400">주요 연구 주제</p>
+            <p class="mt-4 text-sm text-gray-500 dark:text-gray-400">Research topics</p>
             <ul class="mt-2 flex flex-wrap gap-2">
               {areas.map((area) => (
                 <li class="rounded-md bg-gray-100 px-2.5 py-1 text-sm text-gray-700 dark:bg-gray-800 dark:text-gray-300">
@@ -41,7 +41,7 @@ const policies = handbook.filter((p) => p.data.section === 'policies');
     </section>
 
     <section>
-      <h2 class="text-xl font-bold tracking-tight">지원 방법</h2>
+      <h2 class="text-xl font-bold tracking-tight">How to apply</h2>
       <ol class="mt-3 list-decimal space-y-2 pl-5 text-gray-600 dark:text-gray-400">
         <li>
           아래 이메일로 연락합니다. 제목에 <strong>[지원]</strong>과 희망 과정(학부 인턴 / 석사 /
@@ -72,7 +72,7 @@ const policies = handbook.filter((p) => p.data.section === 'policies');
     </section>
 
     <section>
-      <h2 class="text-xl font-bold tracking-tight">지원 전에 읽어보세요</h2>
+      <h2 class="text-xl font-bold tracking-tight">Before you apply</h2>
       <p class="mt-3 text-gray-600 dark:text-gray-400">
         연구실이 어떻게 굴러가는지를 핸드북에 적어두었습니다. 기대치가 맞는지 먼저 확인하는 편이
         서로에게 좋습니다.

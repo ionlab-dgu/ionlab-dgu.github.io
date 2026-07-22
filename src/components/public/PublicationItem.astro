@@ -13,9 +13,9 @@ const { publication, members } = Astro.props;
 const p = publication.data;
 
 const STATUS_LABEL: Record<string, string> = {
-  under_review: '심사 중',
-  accepted: '게재 확정',
-  published: '게재',
+  under_review: 'Under review',
+  accepted: 'Accepted',
+  published: 'Published',
 };
 
 const authors = (p.authors ?? []).map((a) => displayName(a, members));
@@ -66,7 +66,7 @@ const pdf = filled(p.pdf);
         )}
         {code && (
           <a href={code} class="link">
-            코드
+            Code
           </a>
         )}
       </div>

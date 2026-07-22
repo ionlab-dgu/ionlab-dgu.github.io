@@ -24,10 +24,10 @@ const { grant } = Astro.props;
 const g = grant.index.data;
 
 const STATUS_LABEL: Record<string, string> = {
-  planned: '예정',
-  active: '수행 중',
-  reporting: '보고 중',
-  closed: '종료',
+  planned: 'Planned',
+  active: 'Active',
+  reporting: 'Reporting',
+  closed: 'Closed',
 };
 
 const members = getMembers();

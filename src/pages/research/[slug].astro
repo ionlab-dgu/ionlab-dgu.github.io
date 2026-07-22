@@ -22,13 +22,13 @@ const { project } = Astro.props;
 const p = project.index.data;
 
 const STATUS_LABEL: Record<string, string> = {
-  idea: '구상',
-  active: '진행 중',
-  writing: '집필 중',
-  submitted: '심사 중',
-  accepted: '게재 확정',
-  paused: '중단',
-  archived: '보관',
+  idea: 'Idea',
+  active: 'Active',
+  writing: 'Writing',
+  submitted: 'Under review',
+  accepted: 'Accepted',
+  paused: 'Paused',
+  archived: 'Archived',
 };
 const STATUS_TONE: Record<string, string> = {
   idea: 'badge-neutral',
@@ -69,7 +69,7 @@ const venue = filled(p.target_venue);
     {
       people.length > 0 && (
         <div>
-          <dt class="text-gray-500 dark:text-gray-400">참여자</dt>
+          <dt class="text-gray-500 dark:text-gray-400">People</dt>
           <dd class="mt-0.5">
             {people.map((id, i) => (
               <>
@@ -86,7 +86,7 @@ const venue = filled(p.target_venue);
     {
       venue && (
         <div>
-          <dt class="text-gray-500 dark:text-gray-400">목표 발표처</dt>
+          <dt class="text-gray-500 dark:text-gray-400">Target venue</dt>
           <dd class="mt-0.5">{venue}</dd>
         </div>
       )
@@ -94,7 +94,7 @@ const venue = filled(p.target_venue);
     {
       p.start && (
         <div>
-          <dt class="text-gray-500 dark:text-gray-400">시작</dt>
+          <dt class="text-gray-500 dark:text-gray-400">Started</dt>
           <dd class="mt-0.5">{p.start}</dd>
         </div>
       )

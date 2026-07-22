@@ -11,12 +11,12 @@ const { item, compact = false } = Astro.props;
 const n = item.data;
 
 const CATEGORY_LABEL: Record<string, string> = {
-  paper: '논문',
-  award: '수상',
-  member: '구성원',
-  event: '행사',
-  grant: '과제',
-  misc: '소식',
+  paper: 'Paper',
+  award: 'Award',
+  member: 'People',
+  event: 'Event',
+  grant: 'Grant',
+  misc: 'News',
 };
 ---
 
@@ -28,7 +28,7 @@ const CATEGORY_LABEL: Record<string, string> = {
         <span class="badge badge-neutral">{CATEGORY_LABEL[n.category] ?? n.category}</span>
       )
     }
-    {n.pinned && <span class="badge badge-blue">고정</span>}
+    {n.pinned && <span class="badge badge-blue">Pinned</span>}
   </div>
   <h3 class="mt-1.5 font-medium">{n.title ?? n.slug}</h3>
   {

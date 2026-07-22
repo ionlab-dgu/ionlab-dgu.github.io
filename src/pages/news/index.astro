@@ -8,12 +8,12 @@ import { getNews, publicOnly } from '../../lib/content';
 const news = publicOnly(getNews());
 
 const CATEGORY_LABEL: Record<string, string> = {
-  paper: '논문',
-  award: '수상',
-  member: '구성원',
-  event: '행사',
-  grant: '과제',
-  misc: '소식',
+  paper: 'Paper',
+  award: 'Award',
+  member: 'People',
+  event: 'Event',
+  grant: 'Grant',
+  misc: 'News',
 };
 ---
 
@@ -39,7 +39,7 @@ const CATEGORY_LABEL: Record<string, string> = {
                   {CATEGORY_LABEL[item.data.category] ?? item.data.category}
                 </span>
               )}
-              {item.data.pinned && <span class="badge badge-blue">고정</span>}
+              {item.data.pinned && <span class="badge badge-blue">Pinned</span>}
             </div>
             <h2 class="mt-2 text-xl font-semibold">{item.data.title ?? item.data.slug}</h2>
             <div class="mt-3">

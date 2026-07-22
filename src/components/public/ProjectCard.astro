@@ -13,13 +13,13 @@ const { project, internal = false } = Astro.props;
 const p = project.index.data;
 
 const STATUS_LABEL: Record<string, string> = {
-  idea: '구상',
-  active: '진행 중',
-  writing: '집필 중',
-  submitted: '심사 중',
-  accepted: '게재 확정',
-  paused: '중단',
-  archived: '보관',
+  idea: 'Idea',
+  active: 'Active',
+  writing: 'Writing',
+  submitted: 'Under review',
+  accepted: 'Accepted',
+  paused: 'Paused',
+  archived: 'Archived',
 };
 
 const STATUS_TONE: Record<string, string> = {
