@@ -34,5 +34,7 @@ internal:
     href: /internal/meetings
   - label: 1:1
     href: /internal/one-on-ones
-  - label: 핸드북
+  # 공개 핸드북의 상위집합입니다 (공개분 + visibility: internal + private 오버레이).
+  # 라벨로 그 사실을 드러내 공개 /handbook 과 헷갈리지 않게 합니다.
+  - label: 핸드북 전체
     href: /internal/handbook
