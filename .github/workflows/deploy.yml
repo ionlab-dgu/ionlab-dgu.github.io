@@ -1,27 +1,30 @@
 name: Deploy
 
-# 공개 사이트를 ionlab-dgu.github.io 저장소로 배포합니다.
+# 이 저장소(ionlab-dgu/ionlab-dgu.github.io)가 곧 org 사이트이므로
+# GitHub Pages 네이티브 배포를 씁니다. 별도 저장소로 push하지 않으니 PAT가 필요 없습니다.
 #
-# ⚠️ 이 워크플로는 **항상 pnpm build:public** 으로 빌드합니다 (PUBLIC_ONLY=1).
+# ⚠️ 빌드는 **항상 pnpm build:public** (PUBLIC_ONLY=1) 으로 합니다.
 #    private 저장소를 checkout 하지 않으며, 설령 있더라도 읽지 않습니다.
 #    민감 콘텐츠가 공개 사이트에 올라가지 않게 하는 것이 이 워크플로의 첫 번째 책임입니다.
-#
-# 필요한 설정 (Settings → Secrets and variables → Actions):
-#   PAGES_DEPLOY_TOKEN — ionlab-dgu/ionlab-dgu.github.io 에 push 권한이 있는 PAT
-#                        (Fine-grained token: Contents = Read and write)
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pages: write # Pages에 배포
+  id-token: write # OIDC로 배포 신원 확인 (deploy-pages 요구사항)
+
+# 배포는 중간에 끊지 않습니다. 진행 중인 배포가 있으면 끝날 때까지 기다립니다.
 concurrency:
-  group: deploy
-  cancel-in-progress: false # 배포는 중간에 끊지 않습니다
+  group: pages
+  cancel-in-progress: false
 
 jobs:
-  deploy:
-    name: 빌드 · 배포
+  build:
+    name: 빌드
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -49,23 +52,29 @@ jobs:
           fi
           echo ".private/ 없음 — 공개 빌드 진행"
 
+      - uses: actions/configure-pages@v5
+
       - name: 공개 빌드
         run: pnpm build:public
         env:
           # 공개 캘린더만 빌드에 포함합니다. 비공개 캘린더 주소는 여기에 넣지 마세요.
           GCAL_ICAL_SEMINARS: ${{ secrets.GCAL_ICAL_SEMINARS }}
 
+      # 아티팩트를 올리기 전에 검사합니다 — 통과하지 못하면 배포 대상 자체가 만들어지지 않습니다.
       - name: 격리 검사
-        run: node scripts/verify-public-build.mjs
+        run: pnpm verify:public
 
-      - name: ionlab-dgu.github.io 로 배포
-        uses: peaceiris/actions-gh-pages@v4
+      - uses: actions/upload-pages-artifact@v3
         with:
-          personal_token: ${{ secrets.PAGES_DEPLOY_TOKEN }}
-          external_repository: ionlab-dgu/ionlab-dgu.github.io
-          publish_branch: main
-          publish_dir: ./dist
-          # 소스 저장소의 커밋을 그대로 추적할 수 있게 메시지에 남깁니다.
-          commit_message: 'deploy: ${{ github.sha }} (lab-os)'
-          user_name: github-actions[bot]
-          user_email: github-actions[bot]@users.noreply.github.com
+          path: ./dist
+
+  deploy:
+    name: 배포
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
