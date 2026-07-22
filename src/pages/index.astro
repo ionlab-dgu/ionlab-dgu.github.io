@@ -53,26 +53,25 @@ const memberCount = members.filter((m) => m.data.role !== 'alumni').length;
     {heroBody && <p class="mt-4 max-w-2xl text-gray-600 dark:text-gray-400">{heroBody}</p>}
 
     <div class="mt-8 flex flex-wrap gap-3">
-      <a href="/research" class="btn-primary">연구 보기</a>
+      <a href="/research" class="btn-primary">View research</a>
       <a
         href="/join"
         class="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-medium transition-colors hover:border-gray-400 dark:border-gray-700"
+        >Join us</a
       >
-        합류하기
-      </a>
     </div>
 
     <dl class="mt-10 flex flex-wrap gap-x-10 gap-y-4">
       <div>
-        <dt class="text-sm text-gray-500 dark:text-gray-400">구성원</dt>
+        <dt class="text-sm text-gray-500 dark:text-gray-400">Members</dt>
         <dd class="mt-0.5 text-2xl font-semibold tabular-nums">{memberCount}</dd>
       </div>
       <div>
-        <dt class="text-sm text-gray-500 dark:text-gray-400">진행 중인 연구</dt>
+        <dt class="text-sm text-gray-500 dark:text-gray-400">Active projects</dt>
         <dd class="mt-0.5 text-2xl font-semibold tabular-nums">{projects.length}</dd>
       </div>
       <div>
-        <dt class="text-sm text-gray-500 dark:text-gray-400">논문</dt>
+        <dt class="text-sm text-gray-500 dark:text-gray-400">Publications</dt>
         <dd class="mt-0.5 text-2xl font-semibold tabular-nums">{publications.length}</dd>
       </div>
     </dl>
@@ -81,8 +80,8 @@ const memberCount = members.filter((m) => m.data.role !== 'alumni').length;
   {/* ── 연구 ───────────────────────────────────────────── */}
   <section class="py-12">
     <div class="flex items-baseline justify-between">
-      <h2 class="text-2xl font-bold tracking-tight">연구</h2>
-      <a href="/research" class="link text-sm">전체 보기 →</a>
+      <h2 class="text-2xl font-bold tracking-tight">Research</h2>
+      <a href="/research" class="link text-sm">View all →</a>
     </div>
 
     <div class="mt-6">
@@ -108,8 +107,8 @@ const memberCount = members.filter((m) => m.data.role !== 'alumni').length;
   <div class="grid gap-12 border-t border-gray-200 py-12 lg:grid-cols-2 dark:border-gray-800">
     <section>
       <div class="flex items-baseline justify-between">
-        <h2 class="text-2xl font-bold tracking-tight">논문</h2>
-        <a href="/publications" class="link text-sm">전체 보기 →</a>
+        <h2 class="text-2xl font-bold tracking-tight">Publications</h2>
+        <a href="/publications" class="link text-sm">View all →</a>
       </div>
       <div class="mt-4">
         {
@@ -130,8 +129,8 @@ const memberCount = members.filter((m) => m.data.role !== 'alumni').length;
 
     <section>
       <div class="flex items-baseline justify-between">
-        <h2 class="text-2xl font-bold tracking-tight">소식</h2>
-        <a href="/news" class="link text-sm">전체 보기 →</a>
+        <h2 class="text-2xl font-bold tracking-tight">News</h2>
+        <a href="/news" class="link text-sm">View all →</a>
       </div>
       <div class="mt-4">
         {

@@ -9,10 +9,10 @@ import { getHandbookPages, publicVisible } from '../../lib/content';
 const pages = publicVisible(getHandbookPages());
 
 const SECTION_LABEL: Record<string, string> = {
-  '': '개요',
-  onboarding: '온보딩',
-  policies: '정책',
-  tutorials: '튜토리얼',
+  '': 'Overview',
+  onboarding: 'Onboarding',
+  policies: 'Policies',
+  tutorials: 'Tutorials',
 };
 const SECTION_ORDER = ['', 'onboarding', 'policies', 'tutorials'];
 
@@ -35,9 +35,9 @@ for (const page of pages) {
 }
 ---
 
-<PublicLayout title="핸드북" description="ION Lab에서 일하는 방식">
+<PublicLayout title="Handbook" description="ION Lab에서 일하는 방식">
   <PageHeader
-    title="핸드북"
+    title="Handbook"
     description="랩에서 일하는 방식을 적어둔 문서입니다. 고칠 것이 보이면 직접 PR을 보내주세요."
   />
 

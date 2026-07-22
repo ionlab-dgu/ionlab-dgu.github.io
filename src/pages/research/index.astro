@@ -10,14 +10,14 @@ const projects = getPublicResearchProjects();
 const areas = site.research_areas ?? [];
 ---
 
-<PublicLayout title="연구" description="ION Lab의 연구 분야와 진행 중인 프로젝트">
-  <PageHeader title="연구" description={filled(site.lab?.tagline_ko)} />
+<PublicLayout title="Research" description="ION Lab의 연구 분야와 진행 중인 프로젝트">
+  <PageHeader title="Research" description={filled(site.lab?.tagline_ko)} />
 
   {
     areas.length > 0 && (
       <section class="mb-12">
         <h2 class="mb-4 text-sm font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
-          연구 분야
+          Research Areas
         </h2>
         <div class="grid gap-4 sm:grid-cols-2">
           {areas.map((area) => (
@@ -38,7 +38,7 @@ const areas = site.research_areas ?? [];
 
   <section>
     <h2 class="mb-4 text-sm font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
-      프로젝트
+      Projects
     </h2>
     {
       projects.length === 0 ? (

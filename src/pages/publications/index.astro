@@ -16,8 +16,8 @@ const grouped = years.map((year) => ({
 }));
 ---
 
-<PublicLayout title="논문" description="ION Lab의 발표 논문 목록">
-  <PageHeader title="논문">
+<PublicLayout title="Publications" description="ION Lab의 발표 논문 목록">
+  <PageHeader title="Publications">
     <a slot="actions" href="/publications/refs.bib" class="link text-sm">BibTeX ↓</a>
   </PageHeader>
 
@@ -33,7 +33,7 @@ const grouped = years.map((year) => ({
         {grouped.map((group) => (
           <section>
             <h2 class="mb-1 text-sm font-semibold tracking-wide text-gray-500 tabular-nums dark:text-gray-400">
-              {group.year || '연도 미상'}
+              {group.year || 'Year unknown'}
             </h2>
             {group.items.map((publication) => (
               <PublicationItem publication={publication} members={members} />

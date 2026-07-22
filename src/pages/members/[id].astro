@@ -26,12 +26,12 @@ const photo = filled(m.photo);
 const initial = name.trim().charAt(0);
 
 const ROLE_LABEL: Record<string, string> = {
-  pi: 'PI',
-  postdoc: '박사후연구원',
-  phd: '박사과정',
-  ms: '석사과정',
-  ug_intern: '학부 인턴',
-  alumni: '졸업생',
+  pi: 'Faculty',
+  postdoc: 'Postdoctoral Researcher',
+  phd: 'PhD Student',
+  ms: 'MS Student',
+  ug_intern: 'Undergraduate Intern',
+  alumni: 'Alumni',
 };
 
 // 이 사람이 참여한 공개 프로젝트 (lead 또는 collaborator)
@@ -52,7 +52,7 @@ const homepage = filled(m.homepage);
 ---
 
 <PublicLayout title={name} description={`${name} — ${ROLE_LABEL[m.role] ?? m.role}`}>
-  <a href="/members" class="link text-sm">← 구성원</a>
+  <a href="/members" class="link text-sm">← Members</a>
 
   <div class="mt-6 flex flex-wrap items-start gap-6">
     {
@@ -128,7 +128,7 @@ const homepage = filled(m.homepage);
   {
     projects.length > 0 && (
       <section class="mt-12">
-        <h2 class="mb-4 text-xl font-bold tracking-tight">참여 연구</h2>
+        <h2 class="mb-4 text-xl font-bold tracking-tight">Research</h2>
         <div class="grid gap-4 sm:grid-cols-2">
           {projects.map((project) => (
             <ProjectCard project={project} />
@@ -141,7 +141,7 @@ const homepage = filled(m.homepage);
   {
     publications.length > 0 && (
       <section class="mt-12">
-        <h2 class="mb-2 text-xl font-bold tracking-tight">논문</h2>
+        <h2 class="mb-2 text-xl font-bold tracking-tight">Publications</h2>
         {publications.map((publication) => (
           <PublicationItem publication={publication} members={allMembers} />
         ))}
