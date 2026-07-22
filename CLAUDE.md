@@ -34,9 +34,19 @@ lab-os-private/    (private)  민감 콘텐츠 오버레이
 민감 콘텐츠를 다루는 코드를 고쳤다면 직접 확인하세요:
 
 ```bash
-# .private/ 에 카나리 문자열을 심고
 pnpm build:public
-grep -r "카나리문자열" dist/     # 0건이어야 합니다
+pnpm verify:public
+```
+
+`verify:public`(`scripts/verify-public-build.mjs`)은 `.private/`가 연결돼 있으면
+**그 문서의 실제 문장이 `dist/`에 나타나는지 대조**합니다. CI가 매 푸시마다 돌리고,
+배포 워크플로는 이 검사를 통과해야만 push합니다.
+
+검사기 자체가 동작하는지 확인하려면 일부러 깨보세요:
+
+```bash
+pnpm build          # private 포함 빌드
+pnpm verify:public  # 실패해야 정상 (누출 파일과 문장을 지목합니다)
 ```
 
 ### Phase 1의 보안 경계

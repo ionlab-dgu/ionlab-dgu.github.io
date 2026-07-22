@@ -17,6 +17,7 @@
     "dev": "astro dev",
     "build": "astro build",
     "build:public": "PUBLIC_ONLY=1 astro build",
+    "verify:public": "node scripts/verify-public-build.mjs",
     "preview": "astro preview",
     "check": "astro check",
     "format": "prettier --write .",
