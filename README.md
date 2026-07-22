@@ -275,5 +275,6 @@ Node 버전이 낮습니다. 22.12 이상으로 올리세요 (`node -v`).
 
 ## 문서
 
+- [HANDOFF.md](./HANDOFF.md) — 아키텍처, 주요 결정 사항, 진행 상황, 겪은 함정
 - [CLAUDE.md](./CLAUDE.md) — 콘텐츠 스키마, 명명 규칙, private 격리 원칙, 커밋·PR 컨벤션
 - [핸드북](./content/handbook/) — 랩에서 일하는 방식 (온보딩·정책·튜토리얼)
