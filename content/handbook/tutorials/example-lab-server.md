@@ -51,11 +51,11 @@ rsync -avz <username>@TODO.dongguk.edu:~/runs/<exp-id>/ ./runs/<exp-id>/
 
 ## 잘 안 될 때
 
-| 증상 | 원인 | 해결 |
-| --- | --- | --- |
-| `CUDA out of memory` | 다른 사람이 GPU 사용 중 | `nvidia-smi`로 빈 GPU 확인 후 인덱스 변경 |
-| SSH 연결 거부 | 교외에서 VPN 미접속 | 학교 VPN 연결 후 재시도 |
-| 세션 끊기면 학습 중단 | tmux 미사용 | `tmux new -s exp` 안에서 실행 |
+| 증상                  | 원인                    | 해결                                      |
+| --------------------- | ----------------------- | ----------------------------------------- |
+| `CUDA out of memory`  | 다른 사람이 GPU 사용 중 | `nvidia-smi`로 빈 GPU 확인 후 인덱스 변경 |
+| SSH 연결 거부         | 교외에서 VPN 미접속     | 학교 VPN 연결 후 재시도                   |
+| 세션 끊기면 학습 중단 | tmux 미사용             | `tmux new -s exp` 안에서 실행             |
 
 ## 지켜야 할 것
 

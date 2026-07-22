@@ -31,7 +31,9 @@ const CATEGORY_LABEL: Record<string, string> = {
         {news.map((item) => (
           <article class="border-b border-gray-200 pb-10 last:border-0 dark:border-gray-800">
             <div class="flex flex-wrap items-baseline gap-3">
-              <time class="font-mono text-sm text-gray-500 dark:text-gray-400">{item.data.date}</time>
+              <time class="font-mono text-sm text-gray-500 dark:text-gray-400">
+                {item.data.date}
+              </time>
               {item.data.category && (
                 <span class="badge badge-neutral">
                   {CATEGORY_LABEL[item.data.category] ?? item.data.category}

@@ -62,13 +62,7 @@ export interface Member {
 // ─── Research ───────────────────────────────────────────────
 
 export type ResearchStatus =
-  | 'idea'
-  | 'active'
-  | 'writing'
-  | 'submitted'
-  | 'accepted'
-  | 'paused'
-  | 'archived';
+  'idea' | 'active' | 'writing' | 'submitted' | 'accepted' | 'paused' | 'archived';
 
 export interface ResearchProject {
   slug: string;

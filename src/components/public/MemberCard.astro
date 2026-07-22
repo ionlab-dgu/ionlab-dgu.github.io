@@ -52,7 +52,9 @@ const ROLE_LABEL: Record<string, string> = {
     </p>
     {
       interests.length > 0 && (
-        <p class="mt-2 truncate text-sm text-gray-600 dark:text-gray-400">{interests.join(' · ')}</p>
+        <p class="mt-2 truncate text-sm text-gray-600 dark:text-gray-400">
+          {interests.join(' · ')}
+        </p>
       )
     }
   </div>

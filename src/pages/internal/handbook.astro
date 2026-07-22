@@ -17,8 +17,7 @@ const SECTION_LABEL: Record<string, string> = {
 const SECTION_ORDER = ['', 'onboarding', 'policies', 'tutorials'];
 
 const keys = [...new Set(pages.map((p) => p.data.section ?? ''))].sort(
-  (a, b) =>
-    (SECTION_ORDER.indexOf(a) + 1 || 99) - (SECTION_ORDER.indexOf(b) + 1 || 99),
+  (a, b) => (SECTION_ORDER.indexOf(a) + 1 || 99) - (SECTION_ORDER.indexOf(b) + 1 || 99),
 );
 const sections = keys.map((key) => ({
   key,
@@ -30,10 +29,7 @@ const internalOnly = pages.filter((p) => p.data.visibility === 'internal' || p.s
 ---
 
 <InternalLayout title="핸드북">
-  <PageHeader
-    title="핸드북"
-    description="공개 핸드북에 내부 전용 문서를 더한 전체 목록입니다."
-  />
+  <PageHeader title="핸드북" description="공개 핸드북에 내부 전용 문서를 더한 전체 목록입니다." />
 
   {
     pages.length === 0 ? (
@@ -70,7 +66,7 @@ const internalOnly = pages.filter((p) => p.data.visibility === 'internal' || p.s
           )}
         </nav>
 
-        <div class="min-w-0 max-w-3xl flex-1 space-y-16">
+        <div class="max-w-3xl min-w-0 flex-1 space-y-16">
           {sections.map((section) =>
             section.pages.map((page) => (
               <article id={page.data.slug} class="scroll-mt-8">

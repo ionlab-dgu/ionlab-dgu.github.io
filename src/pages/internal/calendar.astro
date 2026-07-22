@@ -54,7 +54,9 @@ function timeLabel(iso: string, allDay: boolean): string {
   {
     days.length === 0 ? (
       <EmptyState
-        title={configured === 0 ? '연결된 캘린더가 없습니다' : '앞으로 60일간 등록된 일정이 없습니다'}
+        title={
+          configured === 0 ? '연결된 캘린더가 없습니다' : '앞으로 60일간 등록된 일정이 없습니다'
+        }
         hint={
           configured === 0
             ? 'config/calendars.yaml 의 ical_url 을 채우거나, 비공개 캘린더면 env_var 에 지정한 환경변수로 iCal 주소를 넘기세요.'
@@ -69,7 +71,9 @@ function timeLabel(iso: string, allDay: boolean): string {
             <h2
               class:list={[
                 'mb-2 font-mono text-sm font-semibold',
-                day === today ? 'text-brand-700 dark:text-brand-300' : 'text-gray-500 dark:text-gray-400',
+                day === today
+                  ? 'text-brand-700 dark:text-brand-300'
+                  : 'text-gray-500 dark:text-gray-400',
               ]}
             >
               {dayLabel(day)}

@@ -15,18 +15,38 @@ const year = new Date().getFullYear();
     <div class="flex flex-wrap justify-between gap-8">
       <div>
         <p class="font-semibold text-gray-900 dark:text-gray-100">{siteName}</p>
-        {(university || department) && <p class="mt-1">{[university, department].filter(Boolean).join(' · ')}</p>}
+        {
+          (university || department) && (
+            <p class="mt-1">{[university, department].filter(Boolean).join(' · ')}</p>
+          )
+        }
         {address && <p class="mt-1">{address}</p>}
-        {email && (
-          <p class="mt-1">
-            <a href={`mailto:${email}`} class="link">{email}</a>
-          </p>
-        )}
+        {
+          email && (
+            <p class="mt-1">
+              <a href={`mailto:${email}`} class="link">
+                {email}
+              </a>
+            </p>
+          )
+        }
       </div>
 
       <div class="flex flex-col gap-1">
-        {github && <a href={github} class="link">GitHub</a>}
-        {scholar && <a href={scholar} class="link">Google Scholar</a>}
+        {
+          github && (
+            <a href={github} class="link">
+              GitHub
+            </a>
+          )
+        }
+        {
+          scholar && (
+            <a href={scholar} class="link">
+              Google Scholar
+            </a>
+          )
+        }
         <a href="/join" class="link">합류하기</a>
       </div>
     </div>

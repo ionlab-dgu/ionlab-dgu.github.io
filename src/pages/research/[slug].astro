@@ -59,7 +59,11 @@ const venue = filled(p.target_venue);
     </span>
   </div>
 
-  {filled(p.short) && <p class="mt-3 max-w-2xl text-lg text-gray-600 dark:text-gray-400">{p.short}</p>}
+  {
+    filled(p.short) && (
+      <p class="mt-3 max-w-2xl text-lg text-gray-600 dark:text-gray-400">{p.short}</p>
+    )
+  }
 
   <dl class="mt-6 flex flex-wrap gap-x-8 gap-y-3 text-sm">
     {
@@ -125,6 +129,7 @@ const venue = filled(p.target_venue);
   }
 
   <p class="mt-12 text-sm text-gray-500 dark:text-gray-400">
-    실험 로그·미팅 노트는 <a href={`/internal/research/${p.slug}`} class="link">내부 페이지</a>에서 볼 수 있습니다.
+    실험 로그·미팅 노트는 <a href={`/internal/research/${p.slug}`} class="link">내부 페이지</a>에서
+    볼 수 있습니다.
   </p>
 </PublicLayout>

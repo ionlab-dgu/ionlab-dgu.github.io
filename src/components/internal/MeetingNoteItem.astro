@@ -37,7 +37,15 @@ const type = d.type ?? (item.context.kind === 'seminar' ? 'reading' : undefined)
   </div>
 
   <p class="mt-1 font-medium">
-    {href ? <a href={href} class="link">{item.context.title}</a> : item.context.title}
+    {
+      href ? (
+        <a href={href} class="link">
+          {item.context.title}
+        </a>
+      ) : (
+        item.context.title
+      )
+    }
   </p>
 
   {

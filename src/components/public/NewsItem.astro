@@ -23,9 +23,17 @@ const CATEGORY_LABEL: Record<string, string> = {
 <article class="border-b border-gray-200 py-5 last:border-0 dark:border-gray-800">
   <div class="flex flex-wrap items-baseline gap-3">
     <time class="font-mono text-xs text-gray-500 dark:text-gray-400">{n.date}</time>
-    {n.category && <span class="badge badge-neutral">{CATEGORY_LABEL[n.category] ?? n.category}</span>}
+    {
+      n.category && (
+        <span class="badge badge-neutral">{CATEGORY_LABEL[n.category] ?? n.category}</span>
+      )
+    }
     {n.pinned && <span class="badge badge-blue">고정</span>}
   </div>
   <h3 class="mt-1.5 font-medium">{n.title ?? n.slug}</h3>
-  {!compact && <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{excerpt(item.body, 200)}</p>}
+  {
+    !compact && (
+      <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{excerpt(item.body, 200)}</p>
+    )
+  }
 </article>

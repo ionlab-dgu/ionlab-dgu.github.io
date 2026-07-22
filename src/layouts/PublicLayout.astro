@@ -15,7 +15,9 @@ const { title, description, width = 'default' } = Astro.props;
 
 <BaseLayout title={title} description={description}>
   <Nav />
-  <main class:list={['mx-auto w-full flex-1 px-6 py-12', width === 'wide' ? 'max-w-6xl' : 'max-w-5xl']}>
+  <main
+    class:list={['mx-auto w-full flex-1 px-6 py-12', width === 'wide' ? 'max-w-6xl' : 'max-w-5xl']}
+  >
     <slot />
   </main>
   <Footer />

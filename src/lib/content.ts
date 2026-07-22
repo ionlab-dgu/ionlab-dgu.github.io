@@ -279,9 +279,7 @@ export function getPublicationsByGrant(grantSlug: string): Doc<Publication>[] {
 
 /** 특정 연구 프로젝트에서 나온 논문. */
 export function getPublicationsByProject(projectSlug: string): Doc<Publication>[] {
-  return getPublications().filter((p) =>
-    (p.data?.attributed_projects ?? []).includes(projectSlug),
-  );
+  return getPublications().filter((p) => (p.data?.attributed_projects ?? []).includes(projectSlug));
 }
 
 // ─── News ───────────────────────────────────────────────────
@@ -416,7 +414,9 @@ export function getMeetingFeed(limit?: number): MeetingFeedItem[] {
     });
   }
 
-  items.sort((a, b) => String(b.doc.data?.date ?? '').localeCompare(String(a.doc.data?.date ?? '')));
+  items.sort((a, b) =>
+    String(b.doc.data?.date ?? '').localeCompare(String(a.doc.data?.date ?? '')),
+  );
   return limit ? items.slice(0, limit) : items;
 }
 

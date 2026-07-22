@@ -11,12 +11,12 @@
 {"user":"ms-gildong-hong","action":"checkout","at":"2026-07-21T18:40:52+09:00"}
 ```
 
-| 필드 | 타입 | 설명 |
-| --- | --- | --- |
-| `user` | string | member id (`content/members/<id>.md`) |
-| `action` | enum | `checkin` \| `break_out` \| `break_in` \| `checkout` \| `remote` |
-| `at` | string | ISO 8601, 오프셋 포함 (`+09:00`) |
-| `note` | string? | 선택. 짧은 메모 |
+| 필드     | 타입    | 설명                                                             |
+| -------- | ------- | ---------------------------------------------------------------- |
+| `user`   | string  | member id (`content/members/<id>.md`)                            |
+| `action` | enum    | `checkin` \| `break_out` \| `break_in` \| `checkout` \| `remote` |
+| `at`     | string  | ISO 8601, 오프셋 포함 (`+09:00`)                                 |
+| `note`   | string? | 선택. 짧은 메모                                                  |
 
 ## 규칙
 

@@ -64,7 +64,9 @@ const alumni = members.filter((m) => m.data.role === 'alumni');
                     <span class="text-gray-500 dark:text-gray-400">{m.data.alumni_since} 졸업</span>
                   )}
                   {m.data.current_position && (
-                    <span class="text-gray-500 dark:text-gray-400">· {m.data.current_position}</span>
+                    <span class="text-gray-500 dark:text-gray-400">
+                      · {m.data.current_position}
+                    </span>
                   )}
                 </li>
               ))}

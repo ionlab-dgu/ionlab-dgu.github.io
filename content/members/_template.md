@@ -28,6 +28,7 @@ email:
 photo: # public/images/members/<id>.jpg 기준 경로. 없으면 이니셜 아바타로 대체
 homepage: # 개인 홈페이지/구글 스칼라 URL
 
+
 # 졸업생만:
 # alumni_since: 2028-02
 # current_position: 'OOO 연구원'

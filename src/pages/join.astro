@@ -15,17 +15,14 @@ const policies = handbook.filter((p) => p.data.section === 'policies');
 ---
 
 <PublicLayout title="합류하기" description={`${siteName} 합류 안내`}>
-  <PageHeader
-    title="합류하기"
-    description="함께 연구할 대학원생과 학부 인턴을 찾고 있습니다."
-  />
+  <PageHeader title="합류하기" description="함께 연구할 대학원생과 학부 인턴을 찾고 있습니다." />
 
   <div class="max-w-3xl space-y-10">
     <section>
       <h2 class="text-xl font-bold tracking-tight">이런 분을 찾습니다</h2>
       <p class="mt-3 text-gray-600 dark:text-gray-400">
-        TODO: 어떤 배경·태도를 기대하는지 두세 문장으로 적어주세요.
-        (예: 수학적 기초를 갖추고 구현으로 검증하려는 사람, 막혔을 때 빨리 묻는 사람)
+        TODO: 어떤 배경·태도를 기대하는지 두세 문장으로 적어주세요. (예: 수학적 기초를 갖추고
+        구현으로 검증하려는 사람, 막혔을 때 빨리 묻는 사람)
       </p>
       {
         areas.length > 0 && (
@@ -47,7 +44,8 @@ const policies = handbook.filter((p) => p.data.section === 'policies');
       <h2 class="text-xl font-bold tracking-tight">지원 방법</h2>
       <ol class="mt-3 list-decimal space-y-2 pl-5 text-gray-600 dark:text-gray-400">
         <li>
-          아래 이메일로 연락합니다. 제목에 <strong>[지원]</strong>과 희망 과정(학부 인턴 / 석사 / 박사)을 적어주세요.
+          아래 이메일로 연락합니다. 제목에 <strong>[지원]</strong>과 희망 과정(학부 인턴 / 석사 /
+          박사)을 적어주세요.
         </li>
         <li>이력서(CV)와 성적증명서를 첨부합니다.</li>
         <li>
@@ -66,8 +64,8 @@ const policies = handbook.filter((p) => p.data.section === 'policies');
           </p>
         ) : (
           <p class="mt-5 rounded-lg border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
-            연락처가 아직 설정되지 않았습니다. <code>config/site.yaml</code> 의
-            <code>pi.email</code> 또는 <code>contact.email</code> 을 채우면 여기에 메일 버튼이 표시됩니다.
+            연락처가 아직 설정되지 않았습니다. <code>config/site.yaml</code> 의<code>pi.email</code>{' '}
+            또는 <code>contact.email</code> 을 채우면 여기에 메일 버튼이 표시됩니다.
           </p>
         )
       }
@@ -76,8 +74,8 @@ const policies = handbook.filter((p) => p.data.section === 'policies');
     <section>
       <h2 class="text-xl font-bold tracking-tight">지원 전에 읽어보세요</h2>
       <p class="mt-3 text-gray-600 dark:text-gray-400">
-        연구실이 어떻게 굴러가는지를 핸드북에 적어두었습니다.
-        기대치가 맞는지 먼저 확인하는 편이 서로에게 좋습니다.
+        연구실이 어떻게 굴러가는지를 핸드북에 적어두었습니다. 기대치가 맞는지 먼저 확인하는 편이
+        서로에게 좋습니다.
       </p>
       <ul class="mt-4 space-y-1.5">
         {

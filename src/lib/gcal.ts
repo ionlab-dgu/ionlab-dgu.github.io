@@ -108,11 +108,7 @@ export function parseIcal(text: string, calendarKey: string): CalendarEvent[] {
 }
 
 function unescapeIcal(v: string): string {
-  return v
-    .replace(/\\n/g, '\n')
-    .replace(/\\,/g, ',')
-    .replace(/\\;/g, ';')
-    .replace(/\\\\/g, '\\');
+  return v.replace(/\\n/g, '\n').replace(/\\,/g, ',').replace(/\\;/g, ';').replace(/\\\\/g, '\\');
 }
 
 /**
@@ -164,7 +160,11 @@ export function eventsOnDay(events: CalendarEvent[], day: string): CalendarEvent
 }
 
 /** 오늘부터 N일 이내의 일정. */
-export function upcomingEvents(events: CalendarEvent[], days = 7, from = new Date()): CalendarEvent[] {
+export function upcomingEvents(
+  events: CalendarEvent[],
+  days = 7,
+  from = new Date(),
+): CalendarEvent[] {
   const start = from.toISOString().slice(0, 10);
   const until = new Date(from.getTime() + days * 86_400_000).toISOString().slice(0, 10);
   return events.filter((e) => {

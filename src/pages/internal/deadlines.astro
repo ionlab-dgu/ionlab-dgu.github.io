@@ -7,7 +7,9 @@ import { getDeadlines, getConferences, IMMINENT_DAYS } from '../../lib/deadlines
 const upcoming = getDeadlines();
 const imminent = upcoming.filter((d) => d.daysLeft <= IMMINENT_DAYS);
 const later = upcoming.filter((d) => d.daysLeft > IMMINENT_DAYS);
-const past = getDeadlines({ includePast: true }).filter((d) => d.daysLeft < 0).reverse();
+const past = getDeadlines({ includePast: true })
+  .filter((d) => d.daysLeft < 0)
+  .reverse();
 
 // 확인되지 않은 학회 날짜 경고 — conferences.yaml 의 verified_by 가 비어 있는 항목
 const unverified = getConferences().filter((c) => !c.verified_by);
@@ -24,10 +26,12 @@ const unverified = getConferences().filter((c) => !c.verified_by);
       <div class="mb-8 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-700/60 dark:bg-amber-900/20 dark:text-amber-200">
         <p class="font-medium">확인되지 않은 학회 날짜 {unverified.length}건</p>
         <p class="mt-1">
-          {unverified.map((c) => `${c.name} ${c.year ?? ''}`).join(', ')} — 예년 패턴에 근거한 초안입니다.
-          투고를 결정했다면 <strong>공식 CFP에서 직접 확인</strong>하고
-          <code class="rounded bg-amber-100 px-1 dark:bg-amber-900/40">content/conferences.yaml</code>의
-          verified_by / verified_on 을 채우세요.
+          {unverified.map((c) => `${c.name} ${c.year ?? ''}`).join(', ')} — 예년 패턴에 근거한
+          초안입니다. 투고를 결정했다면 <strong>공식 CFP에서 직접 확인</strong>하고
+          <code class="rounded bg-amber-100 px-1 dark:bg-amber-900/40">
+            content/conferences.yaml
+          </code>
+          의 verified_by / verified_on 을 채우세요.
         </p>
       </div>
     )

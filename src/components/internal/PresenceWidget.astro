@@ -16,7 +16,9 @@ const presences = getPresence(memberIds);
 const counts = summarizePresence(presences);
 
 const ORDER: PresenceState[] = ['in_lab', 'remote', 'on_break', 'out'];
-const nameOf = new Map(members.map((m) => [m.data.id, m.data.name_ko || m.data.name_en || m.data.id]));
+const nameOf = new Map(
+  members.map((m) => [m.data.id, m.data.name_ko || m.data.name_en || m.data.id]),
+);
 ---
 
 <section class="card">

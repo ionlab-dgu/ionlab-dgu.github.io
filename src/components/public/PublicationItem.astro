@@ -20,7 +20,11 @@ const STATUS_LABEL: Record<string, string> = {
 
 const authors = (p.authors ?? []).map((a) => displayName(a, members));
 const arxiv = filled(p.arxiv);
-const arxivUrl = arxiv ? (arxiv.startsWith('http') ? arxiv : `https://arxiv.org/abs/${arxiv}`) : undefined;
+const arxivUrl = arxiv
+  ? arxiv.startsWith('http')
+    ? arxiv
+    : `https://arxiv.org/abs/${arxiv}`
+  : undefined;
 const code = filled(p.code);
 const pdf = filled(p.pdf);
 ---
@@ -30,16 +34,18 @@ const pdf = filled(p.pdf);
     <h3 class="font-medium">{p.title ?? p.slug}</h3>
     {
       p.status && p.status !== 'published' && (
-        <span
-          class:list={['badge', p.status === 'accepted' ? 'badge-green' : 'badge-amber']}
-        >
+        <span class:list={['badge', p.status === 'accepted' ? 'badge-green' : 'badge-amber']}>
           {STATUS_LABEL[p.status] ?? p.status}
         </span>
       )
     }
   </div>
 
-  {authors.length > 0 && <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{authors.join(', ')}</p>}
+  {
+    authors.length > 0 && (
+      <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{authors.join(', ')}</p>
+    )
+  }
 
   <p class="mt-1 text-sm text-gray-500 dark:text-gray-500">
     {[filled(p.venue), p.year].filter(Boolean).join(', ')}
