@@ -3,6 +3,7 @@ import PublicLayout from '../../layouts/PublicLayout.astro';
 import PageHeader from '../../components/common/PageHeader.astro';
 import Prose from '../../components/common/Prose.astro';
 import EmptyState from '../../components/common/EmptyState.astro';
+import LabBrainBanner from '../../components/public/LabBrainBanner.astro';
 import { getHandbookPages, publicVisible } from '../../lib/content';
 
 // public 핸드북: private 오버레이 제외 + visibility가 internal인 문서 제외
@@ -40,6 +41,8 @@ for (const page of pages) {
     title="Handbook"
     description="랩에서 일하는 방식을 적어둔 문서입니다. 고칠 것이 보이면 직접 PR을 보내주세요."
   />
+
+  <LabBrainBanner />
 
   {
     pages.length === 0 ? (

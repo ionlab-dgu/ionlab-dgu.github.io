@@ -54,6 +54,8 @@ export interface SiteConfig {
   };
   research_areas?: ResearchArea[];
   links: Record<string, string>;
+  /** 핸드북과 동일 콘텐츠로 답하는 별도 Claude Project 링크 (외부). */
+  lab_brain_url?: string;
 }
 
 const SITE_FALLBACK: SiteConfig = {
@@ -129,6 +131,12 @@ export const access = loadYaml<AccessConfig>('access.yaml', {
 
 /** 사이트 표시 이름(짧은 형태). 네비게이션 브랜드·문서 제목 등에 씁니다. */
 export const siteName = site.lab?.name_ko || site.lab?.name_en || 'ION Lab';
+
+/**
+ * Lab Brain(별도 Claude Project) 링크. 값이 없거나 'TODO:' 이면 undefined 를
+ * 반환해 헤더 버튼·배너가 통째로 생략되게 합니다 (filled() 규칙과 동일).
+ */
+export const labBrainUrl = filled(site.lab_brain_url);
 
 /**
  * 풀네임. 약어(ION)가 무엇의 줄임말인지 처음 보는 사람에게 알려주기 위한 것이므로,
