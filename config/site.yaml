@@ -53,8 +53,12 @@ research_areas:
 
 # Lab Brain: 핸드북과 동일한 콘텐츠로 답하는 별도의 Claude Project.
 # 학생이 규정·정책을 즉답으로 물어볼 수 있는 링크입니다.
-# 값을 비우거나 'TODO:' 로 시작하면 헤더 버튼·배너가 렌더에서 생략됩니다.
-lab_brain_url: https://claude.ai/cowork/project/019fabd0-7a85-7649-ad5b-d310aa5ae406
+# 값을 비우거나 'TODO:' 로 시작하면(= 아래처럼 주석 처리하면) 헤더 버튼·배너가
+# 렌더에서 통째로 생략됩니다. 복구하려면 아래 줄의 주석(#)만 풀면 됩니다.
+#
+# ⏸ 현재 비활성: Claude Projects 공유는 Team/Enterprise 플랜이 필요합니다.
+#   학생 접근 방식(자체 구축 / Notion / 기타)이 정해지면 다시 켭니다.
+# lab_brain_url: https://claude.ai/cowork/project/019fabd0-7a85-7649-ad5b-d310aa5ae406
 
 # 푸터/멤버 카드에서 쓰는 외부 링크. 비워두면 렌더링에서 생략됩니다.
 links:
