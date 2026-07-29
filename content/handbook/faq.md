@@ -10,6 +10,11 @@ updated: 2026-07-21
 
 같은 질문을 두 번 받았다면 여기에 추가하세요.
 
+> 💡 규정·정책에 대한 자세한 답은 아래 정책 문서를 참조하세요:
+> [저자권·논문 정책](/handbook#policy-authorship) ·
+> [학사·졸업 규정](/handbook#policy-graduation) ·
+> [연구실 운영 규칙](/handbook#policy-operations)
+
 ## 지원·합류
 
 ### 연구실에 지원하고 싶습니다. 무엇을 보내면 되나요?
@@ -33,7 +38,7 @@ TODO
 
 ### 논문 저자 순서는 어떻게 정하나요?
 
-[저자권 정책](./policies/authorship.md) 참고.
+[저자권·논문 정책](/handbook#policy-authorship) 참고.
 
 ## 행정
 
@@ -44,7 +49,7 @@ TODO
 
 ### 학회 출장비는 어떻게 처리하나요?
 
-[출장 정책](./policies/travel.md) 참고.
+[연구실 운영 규칙](/handbook#policy-operations)의 §6 학회 참석·출장 참고.
 
 ## 도구
 
