@@ -16,13 +16,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
 import { contentRoots, relFromRoot } from './paths';
-import { matterOptions } from './yaml';
+import { matterOptions, parseYaml } from './yaml';
 import type {
   Dataset,
   Doc,
   Grant,
   GrantBundle,
   HandbookPage,
+  LabSeminar,
   MeetingNote,
   Member,
   Model,
@@ -31,6 +32,7 @@ import type {
   ResearchProject,
   ResearchProjectBundle,
   Seminar,
+  SeminarRotation,
 } from './types';
 
 // ─── 저수준 유틸 ────────────────────────────────────────────
@@ -358,6 +360,78 @@ export function getSeminars(): Doc<Seminar>[] {
   return loadFlat<Seminar>('seminars', (_doc, basename) => basename).sort((a, b) =>
     String(b.data?.date ?? '').localeCompare(String(a.data?.date ?? '')),
   );
+}
+
+// ─── Lab seminars (내부 논문 발표) ──────────────────────────
+
+/**
+ * content/lab-seminars/<semester>/<YYYY-MM-DD>.md 를 전부 모읍니다.
+ *
+ * content/seminars/ (초청 강연·워크숍)와는 별개입니다.
+ * semester와 date는 폴더명·파일명이 정본이라, frontmatter가 비어 있으면 거기서 채웁니다
+ * (손으로 쓰다 보면 둘이 어긋나기 쉬운데, 파일 경로 쪽이 항상 맞기 때문입니다).
+ */
+export function getLabSeminars(): Doc<LabSeminar>[] {
+  const docs: Doc<LabSeminar>[] = [];
+  for (const root of contentRoots('lab-seminars')) {
+    for (const semesterDir of listDirs(root.dir)) {
+      const semester = path.basename(semesterDir);
+      for (const file of listFiles(semesterDir)) {
+        const doc = readDoc<LabSeminar>(file, root.private);
+        if (!doc) continue;
+        doc.data = {
+          ...doc.data,
+          semester: doc.data?.semester ?? semester,
+          date: doc.data?.date ?? path.basename(file, '.md'),
+          type: 'lab_seminar',
+        };
+        docs.push(doc);
+      }
+    }
+  }
+  return docs.sort((a, b) => String(b.data?.date ?? '').localeCompare(String(a.data?.date ?? '')));
+}
+
+export function getLabSeminar(semester: string, date: string): Doc<LabSeminar> | undefined {
+  return getLabSeminars().find((s) => s.data?.semester === semester && s.data?.date === date);
+}
+
+/**
+ * 학기별 발표 순서 (_rotation-<semester>.yaml).
+ *
+ * `_` 로 시작하므로 listFiles()가 걸러냅니다 — 세미나 노트로 잘못 읽히지 않게 하려는
+ * 의도이고, 그래서 여기서는 직접 읽습니다.
+ * 파일이 깨져 있어도 빌드를 세우지 않습니다 (경고 후 건너뜀).
+ */
+export function getSeminarRotations(): SeminarRotation[] {
+  const bySemester = new Map<string, SeminarRotation>();
+  for (const root of contentRoots('lab-seminars')) {
+    let names: string[] = [];
+    try {
+      names = fs.readdirSync(root.dir);
+    } catch {
+      continue;
+    }
+    for (const name of names.sort()) {
+      if (!name.startsWith('_rotation-') || !name.endsWith('.yaml')) continue;
+      const file = path.join(root.dir, name);
+      try {
+        const parsed = parseYaml<Partial<SeminarRotation>>(fs.readFileSync(file, 'utf-8'));
+        // 파일명이 정본입니다. _rotation-2026-fall.yaml → 2026-fall
+        const semester = parsed?.semester ?? name.slice('_rotation-'.length, -'.yaml'.length);
+        bySemester.set(semester, {
+          semester,
+          notes: parsed?.notes,
+          // 배정 전에는 schedule 이 비어(null) 있는 것이 정상입니다.
+          schedule: (parsed?.schedule ?? []).filter((slot) => slot && slot.date),
+        });
+      } catch (err) {
+        console.warn(`[lab-os] ${relFromRoot(file)} 을 읽지 못했습니다 — 건너뜁니다.`, err);
+      }
+    }
+  }
+  // 최신 학기가 먼저
+  return [...bySemester.values()].sort((a, b) => b.semester.localeCompare(a.semester));
 }
 
 // ─── 미팅 노트 통합 피드 ────────────────────────────────────

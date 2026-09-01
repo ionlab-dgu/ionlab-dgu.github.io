@@ -1,0 +1,112 @@
+---
+import PublicLayout from '../../../layouts/PublicLayout.astro';
+import Prose from '../../../components/common/Prose.astro';
+import { getLabSeminars, getMembers, displayName, publicOnly } from '../../../lib/content';
+import { filled } from '../../../lib/config';
+
+export function getStaticPaths() {
+  return publicOnly(getLabSeminars()).map((seminar) => ({
+    params: { semester: seminar.data.semester, date: seminar.data.date },
+    props: { seminar },
+  }));
+}
+
+const { seminar } = Astro.props;
+const s = seminar.data;
+const paper = s.paper ?? {};
+
+const members = publicOnly(getMembers());
+const presenter = filled(s.presenter);
+const discussant = filled(s.discussant);
+
+const STATUS_LABEL: Record<string, string> = {
+  upcoming: 'Upcoming',
+  done: 'Done',
+  skipped: 'Skipped',
+};
+const STATUS_TONE: Record<string, string> = {
+  upcoming: 'badge-amber',
+  done: 'badge-green',
+  skipped: 'badge-neutral',
+};
+
+const title = filled(paper.title) ?? `랩 세미나 ${s.date}`;
+const meta = [filled(paper.authors), filled(paper.venue), paper.year].filter(Boolean).join(' · ');
+---
+
+<PublicLayout title={title} description={meta || undefined}>
+  <a href="/lab-seminars" class="link text-sm">← Seminars</a>
+
+  <div class="mt-6 flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <p class="text-sm text-gray-500 dark:text-gray-400">
+        {s.date} · {s.semester}
+      </p>
+      <h1 class="mt-1 max-w-3xl text-3xl font-bold tracking-tight">{title}</h1>
+    </div>
+    {
+      s.status && (
+        <span class:list={['badge', STATUS_TONE[s.status] ?? 'badge-neutral']}>
+          {STATUS_LABEL[s.status] ?? s.status}
+        </span>
+      )
+    }
+  </div>
+
+  {meta && <p class="mt-3 text-gray-600 dark:text-gray-400">{meta}</p>}
+
+  <dl class="mt-6 flex flex-wrap gap-x-8 gap-y-3 text-sm">
+    {
+      presenter && (
+        <div>
+          <dt class="text-gray-500 dark:text-gray-400">Presenter</dt>
+          <dd class="mt-0.5">
+            <a href={`/members/${presenter}`} class="link">
+              {displayName(presenter, members)}
+            </a>
+          </dd>
+        </div>
+      )
+    }
+    {
+      discussant && (
+        <div>
+          <dt class="text-gray-500 dark:text-gray-400">Discussant</dt>
+          <dd class="mt-0.5">
+            <a href={`/members/${discussant}`} class="link">
+              {displayName(discussant, members)}
+            </a>
+          </dd>
+        </div>
+      )
+    }
+    {
+      filled(paper.arxiv) && (
+        <div>
+          <dt class="text-gray-500 dark:text-gray-400">Paper</dt>
+          <dd class="mt-0.5">
+            <a href={paper.arxiv} class="link" rel="noopener">
+              arXiv
+            </a>
+          </dd>
+        </div>
+      )
+    }
+    {
+      filled(paper.code) && (
+        <div>
+          <dt class="text-gray-500 dark:text-gray-400">Code</dt>
+          <dd class="mt-0.5">
+            <a href={paper.code} class="link" rel="noopener">
+              Repository
+            </a>
+          </dd>
+        </div>
+      )
+    }
+  </dl>
+
+  <div class="mt-10 max-w-3xl border-t border-gray-200 pt-8 dark:border-gray-800">
+    <Prose body={seminar.body} />
+  </div>
+</PublicLayout>

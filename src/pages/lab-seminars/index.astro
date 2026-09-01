@@ -1,0 +1,185 @@
+---
+import PublicLayout from '../../layouts/PublicLayout.astro';
+import PageHeader from '../../components/common/PageHeader.astro';
+import EmptyState from '../../components/common/EmptyState.astro';
+import {
+  getLabSeminars,
+  getSeminarRotations,
+  getMembers,
+  displayName,
+  publicOnly,
+} from '../../lib/content';
+import { filled } from '../../lib/config';
+
+// 랩 세미나는 공개 콘텐츠지만, 혹시 private 오버레이에 같은 경로가 생겨도
+// 공개 페이지에는 나오지 않도록 여기서 한 번 거릅니다.
+const seminars = publicOnly(getLabSeminars());
+const rotations = getSeminarRotations();
+const members = publicOnly(getMembers());
+
+/** 로테이션 슬롯에서 그 날짜의 노트를 찾습니다 (있으면 링크를 겁니다). */
+function noteFor(date: string) {
+  return seminars.find((s) => s.data.date === date);
+}
+
+/** TODO/빈 값은 사람 이름 대신 '—' 로 둡니다. */
+function person(id?: string): string {
+  const value = filled(id);
+  return value ? displayName(value, members) : '—';
+}
+
+const bySemester = [...new Set(seminars.map((s) => s.data.semester))]
+  .sort((a, b) => b.localeCompare(a))
+  .map((semester) => ({
+    semester,
+    items: seminars.filter((s) => s.data.semester === semester),
+  }));
+
+const STATUS_LABEL: Record<string, string> = {
+  upcoming: 'Upcoming',
+  done: 'Done',
+  skipped: 'Skipped',
+};
+const STATUS_TONE: Record<string, string> = {
+  upcoming: 'badge-amber',
+  done: 'badge-green',
+  skipped: 'badge-neutral',
+};
+
+const nothingYet = rotations.length === 0 && seminars.length === 0;
+---
+
+<PublicLayout title="Seminars" description="ION Lab 랩 세미나 — 매주 수요일 15:00, 논문 발표">
+  <PageHeader
+    title="Seminars"
+    description="매주 수요일 15:00에 모여 논문 한 편을 읽고 이야기합니다. 참석자는 최소 abstract와 intro를 읽고 옵니다."
+  />
+
+  {
+    nothingYet ? (
+      <EmptyState
+        title="아직 세미나 기록이 없습니다"
+        hint="content/lab-seminars/_rotation-2026-fall.yaml 의 schedule 을 채우면 발표 순서가, content/lab-seminars/2026-fall/YYYY-MM-DD.md 를 만들면 아카이브가 여기에 표시됩니다."
+      />
+    ) : (
+      <div class="space-y-14">
+        {/* ── 발표 순서 ─────────────────────────────────── */}
+        {rotations.map((rotation) => (
+          <section>
+            <h2 class="mb-1 text-sm font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
+              Rotation · {rotation.semester}
+            </h2>
+            {filled(rotation.notes) && (
+              <p class="mb-4 text-sm text-gray-600 dark:text-gray-400">{rotation.notes}</p>
+            )}
+
+            {rotation.schedule.length === 0 ? (
+              <EmptyState
+                title="발표 순서가 아직 정해지지 않았습니다"
+                hint={`학기 초에 학생끼리 협의해서 content/lab-seminars/_rotation-${rotation.semester}.yaml 의 schedule 을 채웁니다. 개인 사정으로 서로 교환해도 됩니다.`}
+              />
+            ) : (
+              <div class="overflow-x-auto">
+                <table class="w-full min-w-lg text-left text-sm">
+                  <thead class="border-b border-gray-200 text-gray-500 dark:border-gray-800 dark:text-gray-400">
+                    <tr>
+                      <th class="py-2 pr-4 font-medium">Date</th>
+                      <th class="py-2 pr-4 font-medium">Presenter</th>
+                      <th class="py-2 pr-4 font-medium">Discussant</th>
+                      <th class="py-2 font-medium">Note</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rotation.schedule.map((slot) => {
+                      const note = noteFor(slot.date);
+                      return (
+                        <tr class="border-b border-gray-100 dark:border-gray-800/60">
+                          <td class="py-2.5 pr-4 font-mono text-xs whitespace-nowrap">
+                            {slot.date}
+                          </td>
+                          <td class="py-2.5 pr-4">{person(slot.presenter)}</td>
+                          <td class="py-2.5 pr-4 text-gray-500 dark:text-gray-400">
+                            {person(slot.discussant)}
+                          </td>
+                          <td class="py-2.5">
+                            {note ? (
+                              <a
+                                href={`/lab-seminars/${note.data.semester}/${note.data.date}`}
+                                class="link"
+                              >
+                                {filled(note.data.paper?.title) ?? '노트 보기'}
+                              </a>
+                            ) : (
+                              <span class="text-gray-400 dark:text-gray-600">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        ))}
+
+        {/* ── 아카이브 ──────────────────────────────────── */}
+        <section>
+          <h2 class="mb-4 text-sm font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
+            Archive
+          </h2>
+
+          {seminars.length === 0 ? (
+            <EmptyState
+              title="아직 작성된 세미나 노트가 없습니다"
+              hint="발표한 사람이 당일에 씁니다. content/lab-seminars/_template.md 를 복사해 content/lab-seminars/<학기>/YYYY-MM-DD.md 로 저장하세요."
+            />
+          ) : (
+            <div class="space-y-8">
+              {bySemester.map((group) => (
+                <div>
+                  <h3 class="mb-3 font-semibold">{group.semester}</h3>
+                  <ul class="space-y-3">
+                    {group.items.map((seminar) => (
+                      <li class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                        <span class="font-mono text-xs whitespace-nowrap text-gray-500 dark:text-gray-400">
+                          {seminar.data.date}
+                        </span>
+                        <a
+                          href={`/lab-seminars/${seminar.data.semester}/${seminar.data.date}`}
+                          class="link font-medium"
+                        >
+                          {filled(seminar.data.paper?.title) ?? '(제목 미정)'}
+                        </a>
+                        {seminar.data.status && seminar.data.status !== 'done' && (
+                          <span
+                            class:list={[
+                              'badge',
+                              STATUS_TONE[seminar.data.status] ?? 'badge-neutral',
+                            ]}
+                          >
+                            {STATUS_LABEL[seminar.data.status] ?? seminar.data.status}
+                          </span>
+                        )}
+                        {filled(seminar.data.presenter) && (
+                          <span class="text-sm text-gray-500 dark:text-gray-400">
+                            {person(seminar.data.presenter)}
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+    )
+  }
+
+  <p class="mt-14 text-sm text-gray-500 dark:text-gray-400">
+    운영 규칙은 <a href="/handbook#policy-operations" class="link">핸드북 §1 랩 세미나</a>에
+    있습니다. 초청 강연·워크숍은 별도로 관리합니다.
+  </p>
+</PublicLayout>

@@ -80,7 +80,8 @@ content/          콘텐츠 (마크다운) — 대부분 여기만 고치면 됩
   news/             소식
   handbook/         핸드북 (온보딩·정책·튜토리얼)
   datasets/ models/ 데이터셋·모델 레지스트리
-  seminars/         세미나·리딩 그룹 노트
+  lab-seminars/     랩 세미나 (내부 논문 발표) — 발표 순서 + 학기별 노트
+  seminars/         초청 강연·외부 워크숍 노트
   conferences.yaml  관심 학회 마감일
 
 config/           사이트 설정 (이름·연락처·네비게이션·캘린더·권한)
@@ -127,8 +128,12 @@ frontmatter 주석에 각 필드의 의미가 적혀 있습니다.
 | --------- | ------------------------------------------------------- |
 | 주간 진행 | `content/research/<slug>/meetings/2026-07-20-weekly.md` |
 | 과제      | `content/grants/<slug>/meetings/2026-07-20-grant.md`    |
-| 리딩 그룹 | `content/seminars/2026-07-15-reading.md`                |
+| 랩 세미나 | `content/lab-seminars/2026-fall/2026-09-03.md`          |
+| 초청 강연 | `content/seminars/2026-07-15-reading.md`                |
 | 1:1       | **private 저장소**의 `content/one-on-ones/<member-id>/` |
+
+> 랩 세미나 노트 파일명은 `YYYY-MM-DD.md` 입니다 (종류 접미사 없음).
+> 발표 순서는 `content/lab-seminars/_rotation-<학기>.yaml` 한 장에 모여 있습니다.
 
 > 주간 미팅 노트는 **발표한 학생이** 미팅 당일에 씁니다.
 

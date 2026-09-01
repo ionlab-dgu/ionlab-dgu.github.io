@@ -228,6 +228,53 @@ export interface Seminar {
   visibility?: Visibility;
 }
 
+// ─── Lab seminar (내부 논문 발표 = 리딩 그룹) ───────────────
+
+/**
+ * Seminar(content/seminars/)와 구분됩니다.
+ *   Seminar     = 초청 강연·외부 워크숍
+ *   LabSeminar  = 우리끼리 매주 하는 논문 발표
+ * 파일 위치: content/lab-seminars/<semester>/<YYYY-MM-DD>.md
+ */
+export type LabSeminarStatus = 'upcoming' | 'done' | 'skipped';
+
+export interface LabSeminarPaper {
+  title?: string;
+  authors?: string;
+  venue?: string;
+  year?: number;
+  arxiv?: string;
+  code?: string;
+}
+
+export interface LabSeminar {
+  date: string;
+  /** YYYY-fall | YYYY-spring. 로더가 폴더명으로 채웁니다. */
+  semester: string;
+  type: 'lab_seminar';
+  presenter?: string;
+  /** 지정 discussant는 아직 정식 제도가 아니라 비어 있는 것이 정상입니다. */
+  discussant?: string;
+  paper?: LabSeminarPaper;
+  status?: LabSeminarStatus;
+  attendees?: string[];
+}
+
+/** content/lab-seminars/_rotation-<semester>.yaml 한 학기분. */
+export interface SeminarRotationSlot {
+  date: string;
+  presenter?: string;
+  discussant?: string;
+  note?: string;
+}
+
+export interface SeminarRotation {
+  semester: string;
+  /** 학생끼리 어떻게 배정했는지 등 자유 메모. */
+  notes?: string;
+  schedule: SeminarRotationSlot[];
+}
+
 // ─── Attendance ─────────────────────────────────────────────
 
 export type AttendanceAction = 'checkin' | 'break_out' | 'break_in' | 'checkout' | 'remote';

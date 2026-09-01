@@ -74,8 +74,18 @@ GitHub OAuth + org 멤버십 검증은 Phase 2에서 붙입니다 (`src/lib/auth
 | Handbook        | `content/handbook/**/*.md`          | 섹션 폴더                                         |
 | Dataset / Model | `content/datasets                   | models/<slug>.md`                                 | 단일 파일 |
 | Seminar         | `content/seminars/<date>-<type>.md` | 단일 파일                                         |
+| LabSeminar      | `content/lab-seminars/<학기>/YYYY-MM-DD.md` | 학기 폴더 (+ `_rotation-<학기>.yaml`)     |
 | Conference      | `content/conferences.yaml`          | 단일 YAML                                         |
 | Attendance      | `data/attendance/YYYY-MM.jsonl`     | append-only JSONL                                 |
+| ResearchPlan    | **private** `content/research-plans/<member-id>/<학기>.md` | 학생 폴더               |
+
+### Seminar와 LabSeminar의 구분
+
+- **Seminar** (`content/seminars/`): 초청 강연·외부 워크숍. 외부 연사가 옵니다.
+- **LabSeminar** (`content/lab-seminars/`): 우리끼리 매주 하는 논문 발표(= 리딩 그룹).
+  학기 폴더 아래 날짜 파일, 발표 순서는 `_rotation-<학기>.yaml` 한 장.
+  `_` 로 시작하므로 로더가 세미나 노트로 오인하지 않습니다
+  (`getSeminarRotations`가 따로 읽습니다).
 
 ### 연구(Research)와 과제(Grant)의 구분
 
@@ -229,7 +239,9 @@ pnpm new:publication  # 논문 (+ refs.bib 엔트리)
 
 **Q. 미팅 노트는 어디에 두나요?**
 주간 진행은 `content/research/<slug>/meetings/`, 과제는 `content/grants/<slug>/meetings/`,
-리딩 그룹은 `content/seminars/`, **1:1은 private 저장소의 `content/one-on-ones/<member-id>/`**.
+랩 세미나(= 리딩 그룹)는 `content/lab-seminars/<학기>/`, 초청 강연은 `content/seminars/`,
+**1:1은 private 저장소의 `content/one-on-ones/<member-id>/`**.
+연구 계획서도 **private 저장소**의 `content/research-plans/<member-id>/<학기>.md` 입니다.
 
 **Q. 연구를 공개 사이트에서 숨기려면?**
 `status: archived`로 두면 공개 목록에서 빠지고 내부 목록에는 남습니다.
