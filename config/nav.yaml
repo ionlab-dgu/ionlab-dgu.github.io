@@ -17,6 +17,9 @@ public:
   # 랩 내부 논문 발표(= 리딩 그룹) 기록. 초청 강연은 아직 별도 페이지가 없습니다.
   - label: Seminars
     href: /lab-seminars
+  # 학회 마감 + 공개 랩 일정. 과제 마감은 여기 나오지 않습니다 (/internal/deadlines).
+  - label: Calendar
+    href: /calendar
   - label: Handbook
     href: /handbook
   - label: Join

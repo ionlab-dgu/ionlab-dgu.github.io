@@ -1,0 +1,165 @@
+---
+/**
+ * 공개 캘린더 — 학회 마감과 공개 랩 일정.
+ *
+ * ⚠️ 이 페이지는 공개입니다. 과제(Grant) 데드라인은 절대 여기 오면 안 됩니다.
+ *    그래서 getDeadlines()가 아니라 getConferenceDeadlines()를 씁니다 —
+ *    getGrants()를 아예 부르지 않는 함수입니다 (src/lib/deadlines.ts 참고).
+ *    캘린더도 visibility: public 인 것만 가져옵니다.
+ */
+import PublicLayout from '../layouts/PublicLayout.astro';
+import PageHeader from '../components/common/PageHeader.astro';
+import EmptyState from '../components/common/EmptyState.astro';
+import {
+  getConferenceDeadlines,
+  getConferenceDisplay,
+  ddayBadge,
+  ddayLabel,
+  IMMINENT_DAYS,
+} from '../lib/deadlines';
+import { fetchAllEvents, upcomingEvents, calendarMeta } from '../lib/gcal';
+
+const display = getConferenceDisplay();
+
+const deadlines = getConferenceDeadlines({ includePast: !display.show_upcoming_only });
+const imminent = deadlines.filter((d) => d.daysLeft >= 0 && d.daysLeft <= IMMINENT_DAYS);
+const later = deadlines.filter((d) => d.daysLeft > IMMINENT_DAYS);
+
+// 공개 캘린더만. ical_url / env_var 가 비어 있으면 fetchAllEvents 가 빈 배열을 줍니다.
+const events = await fetchAllEvents({ visibility: 'public' });
+const nextEvents = upcomingEvents(events, 30).slice(0, 8);
+
+function eventDateLabel(iso: string, allDay: boolean): string {
+  const day = iso.slice(0, 10);
+  if (allDay) return day;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return day;
+  const time = d.toLocaleTimeString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Asia/Seoul',
+  });
+  return `${day} ${time}`;
+}
+---
+
+<PublicLayout title="Calendar" description="ION Lab이 주시하는 학회 마감과 공개 랩 일정">
+  <PageHeader
+    title="Calendar"
+    description="우리가 투고를 고려하는 학회의 마감일과, 공개된 랩 일정입니다."
+  />
+
+  <div class="max-w-3xl space-y-12">
+    <section>
+      <h2 class="mb-3 font-semibold">
+        Upcoming deadlines
+        <span class="text-sm font-normal text-gray-500 dark:text-gray-400">
+          D-{IMMINENT_DAYS} 이내
+        </span>
+      </h2>
+
+      {
+        imminent.length === 0 ? (
+          <EmptyState
+            title="D-30 이내 마감이 없습니다"
+            hint="학회 목록은 content/conferences.yaml 의 tracked_venues 에서 정합니다. 날짜는 주 1회 자동으로 갱신됩니다."
+            command="node scripts/fetch-conferences.mjs"
+            icon="◷"
+          />
+        ) : (
+          <ul class="divide-y divide-gray-200 dark:divide-gray-800">
+            {imminent.map((d) => {
+              const Tag = d.url ? 'a' : 'div';
+              return (
+                <li>
+                  <Tag
+                    href={d.url}
+                    class="flex items-center justify-between gap-4 py-3 transition-colors hover:bg-gray-50 dark:hover:bg-gray-900"
+                  >
+                    <div class="min-w-0">
+                      <p class="truncate font-medium">{d.label}</p>
+                      <p class="text-sm text-gray-500 dark:text-gray-400">
+                        {d.sublabel} · {d.due}
+                      </p>
+                    </div>
+                    <span class:list={['badge shrink-0 tabular-nums', ddayBadge(d.daysLeft)]}>
+                      {ddayLabel(d.daysLeft)}
+                    </span>
+                  </Tag>
+                </li>
+              );
+            })}
+          </ul>
+        )
+      }
+
+      {
+        later.length > 0 && (
+          <details class="mt-6">
+            <summary class="cursor-pointer text-sm text-gray-500 dark:text-gray-400">
+              그 다음 마감 {later.length}건
+            </summary>
+            <ul class="mt-2 divide-y divide-gray-200 dark:divide-gray-800">
+              {later.map((d) => (
+                <li class="flex items-center justify-between gap-4 py-2.5 text-sm">
+                  <span class="min-w-0 truncate">
+                    {d.label}
+                    <span class="text-gray-500 dark:text-gray-400"> · {d.sublabel}</span>
+                  </span>
+                  <span class="shrink-0 font-mono text-gray-500 tabular-nums dark:text-gray-400">
+                    {d.due}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )
+      }
+    </section>
+
+    <section>
+      <h2 class="mb-3 font-semibold">Next lab events</h2>
+
+      {
+        nextEvents.length === 0 ? (
+          <EmptyState
+            title="공개된 예정 일정이 없습니다"
+            hint="공개 캘린더(config/calendars.yaml 의 visibility: public)에 ical_url 이 연결되면 여기에 나타납니다. 랩 구성원은 /internal/calendar 에서 전체 일정을 봅니다."
+            icon="◷"
+          />
+        ) : (
+          <ul class="divide-y divide-gray-200 dark:divide-gray-800">
+            {nextEvents.map((e) => (
+              <li class="flex items-baseline gap-4 py-2.5">
+                <time class="w-36 shrink-0 font-mono text-sm text-gray-500 tabular-nums dark:text-gray-400">
+                  {eventDateLabel(e.start, e.allDay)}
+                </time>
+                <div class="min-w-0">
+                  <p>{e.summary}</p>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">
+                    {[calendarMeta(e.calendar)?.label, e.location].filter(Boolean).join(' · ')}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )
+      }
+    </section>
+
+    <section
+      class="border-t border-gray-200 pt-6 text-sm text-gray-500 dark:border-gray-800 dark:text-gray-400"
+    >
+      <p>
+        마감일은 <a href="https://huggingface.co/spaces/huggingface/ai-deadlines" class="link"
+          >aideadlines</a
+        >에서 주 1회 자동으로 받아온 것이며, <strong>공식 CFP가 정본입니다.</strong>
+        투고를 결정했다면 반드시 학회 사이트에서 직접 확인하세요.
+      </p>
+      <p class="mt-2">
+        캘린더를 본인 Google Calendar에 구독하는 방법은
+        <a href="/handbook" class="link">핸드북</a>의 캘린더 구독하기 문서를 보세요.
+      </p>
+    </section>
+  </div>
+</PublicLayout>

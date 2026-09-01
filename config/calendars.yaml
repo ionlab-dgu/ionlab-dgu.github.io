@@ -42,3 +42,25 @@ calendars:
     ical_url: ''
     env_var: GCAL_ICAL_SEMINARS
     visibility: public
+
+# ─────────────────────────────────────────────────────────────
+# 외부 데이터 소스 (GCal이 아닌 곳에서 끌어오는 일정)
+#
+# GCal 캘린더와 달리 사람이 관리하지 않습니다. 워크플로가 주기적으로 받아와
+# src/data/ 아래 JSON으로 캐시하고, 사이트는 그 캐시만 읽습니다.
+# 빌드 시점에 네트워크를 타지 않으므로 upstream이 죽어도 빌드는 성공합니다.
+
+external_sources:
+  - key: conference-deadlines
+    label: 학회 데드라인
+    color: red
+    description: 관심 학회 투고 마감 (content/conferences.yaml 의 tracked_venues 만 필터링)
+    visibility: public
+    # huggingface/ai-deadlines — venue별 YAML 파일.
+    # 원래 쓰던 paperswithcode/ai-deadlines 는 2024-09 이후 갱신이 멈춰
+    # 유지되고 있는 후속 저장소로 옮겼습니다.
+    source: aideadlines
+    base_url: https://raw.githubusercontent.com/huggingface/ai-deadlines/main/src/data/conferences
+    cache_path: src/data/conferences-fetched.json
+    # .github/workflows/sync-conferences.yml 의 cron 과 맞춰 두세요 (표기용).
+    sync_schedule: weekly

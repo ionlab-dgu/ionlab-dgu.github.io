@@ -27,6 +27,8 @@
     "new:project": "node scripts/new-project.mjs",
     "new:grant": "node scripts/new-grant.mjs",
     "new:publication": "node scripts/new-publication.mjs",
+    "sync:conferences": "node scripts/fetch-conferences.mjs",
+    "summary:weekly": "node scripts/weekly-slack-summary.mjs",
     "astro": "astro"
   },
   "dependencies": {

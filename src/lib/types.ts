@@ -325,6 +325,40 @@ export interface Conference {
   tags?: string[];
   verified_by?: string | null;
   verified_on?: string | null;
+  /** content/conferences.yaml 의 tracked_venues 에서 물려받는 분류. */
+  category?: string;
+  /** upstream 항목 id (aideadlines 의 'iclr26' 등). 같은 항목을 다시 찾을 때 씁니다. */
+  source_id?: string;
+  /**
+   * 출처. 없으면 사람이 직접 적은 것('manual')으로 봅니다.
+   *
+   * /internal/deadlines 의 "확인되지 않은 학회 날짜" 경고는 사람이 예년 패턴으로
+   * 추측해 적은 항목에만 붙어야 하므로, 자동 수집분을 이 필드로 갈라냅니다.
+   */
+  source?: 'manual' | 'aideadlines';
+}
+
+/** content/conferences.yaml 의 tracked_venues 한 줄. 자동 수집 대상. */
+export interface TrackedVenue {
+  name: string;
+  /** upstream 파일명 (huggingface/ai-deadlines 의 src/data/conferences/<source>.yml). */
+  source: string;
+  category?: string;
+}
+
+/** content/conferences.yaml 의 display 블록. */
+export interface ConferenceDisplayConfig {
+  show_upcoming_only: boolean;
+  /** 내림차순. 남은 일수가 이 값 이하로 떨어질 때마다 강조 단계가 올라갑니다. */
+  highlight_days: number[];
+  default_view: 'list' | 'calendar';
+}
+
+/** scripts/fetch-conferences.mjs 가 만드는 캐시 파일의 모양. */
+export interface FetchedConferences {
+  generated_at?: string;
+  source?: string;
+  venues: Conference[];
 }
 
 /** 학회 데드라인과 과제 리포트 데드라인을 하나로 합친 뷰 모델. */

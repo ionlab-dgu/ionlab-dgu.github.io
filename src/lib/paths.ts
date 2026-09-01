@@ -45,6 +45,12 @@ function findRoot(): string {
 export const ROOT = findRoot();
 
 export const CONTENT_DIR = path.join(ROOT, 'content');
+/**
+ * 자동 생성 캐시(예: conferences-fetched.json)가 사는 곳.
+ * content/ 가 아니라 src/ 아래인 이유: 사람이 고치는 콘텐츠가 아니라 빌드 입력이고,
+ * private 오버레이 대상이 아니기 때문입니다.
+ */
+export const SRC_DATA_DIR = path.join(ROOT, 'src', 'data');
 export const CONFIG_DIR = path.join(ROOT, 'config');
 export const DATA_DIR = path.join(ROOT, 'data');
 export const PRIVATE_DIR = path.join(ROOT, '.private');

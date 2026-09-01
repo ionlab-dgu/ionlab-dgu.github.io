@@ -95,14 +95,35 @@ export interface CalendarConfig {
   visibility?: 'public' | 'internal';
 }
 
+/**
+ * GCal이 아닌 외부 소스 (지금은 학회 데드라인 하나).
+ *
+ * GCal 캘린더와 달리 빌드 시점에 fetch하지 않습니다. 워크플로가 받아와
+ * cache_path 의 JSON으로 커밋해 두고, 사이트는 그 캐시만 읽습니다.
+ */
+export interface ExternalSourceConfig {
+  key: string;
+  label: string;
+  color?: string;
+  description?: string;
+  visibility?: 'public' | 'internal';
+  source?: string;
+  base_url?: string;
+  /** 저장소 루트 기준 상대 경로. */
+  cache_path?: string;
+  sync_schedule?: string;
+}
+
 export interface CalendarsConfig {
   fetch: { mode: 'build' | 'runtime'; timeout_ms: number; fail_on_error: boolean };
   calendars: CalendarConfig[];
+  external_sources?: ExternalSourceConfig[];
 }
 
 export const calendars = loadYaml<CalendarsConfig>('calendars.yaml', {
   fetch: { mode: 'build', timeout_ms: 8000, fail_on_error: false },
   calendars: [],
+  external_sources: [],
 });
 
 // ─── access.yaml ────────────────────────────────────────────

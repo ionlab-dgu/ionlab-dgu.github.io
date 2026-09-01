@@ -11,8 +11,14 @@ const past = getDeadlines({ includePast: true })
   .filter((d) => d.daysLeft < 0)
   .reverse();
 
-// 확인되지 않은 학회 날짜 경고 — conferences.yaml 의 verified_by 가 비어 있는 항목
-const unverified = getConferences().filter((c) => !c.verified_by);
+// 확인되지 않은 학회 날짜 경고.
+//
+// 자동 수집분(aideadlines)은 제외합니다. 이 경고의 취지는 "사람이 예년 패턴으로
+// 추측해 적은 날짜를 믿지 말라"는 것인데, 자동 수집분까지 넣으면 목록이 수십 건으로
+// 불어나 정작 확인이 필요한 수동 항목이 묻힙니다.
+const conferences = getConferences();
+const unverified = conferences.filter((c) => c.source !== 'aideadlines' && !c.verified_by);
+const fetchedCount = conferences.filter((c) => c.source === 'aideadlines').length;
 ---
 
 <InternalLayout title="데드라인">
@@ -34,6 +40,22 @@ const unverified = getConferences().filter((c) => !c.verified_by);
           의 verified_by / verified_on 을 채우세요.
         </p>
       </div>
+    )
+  }
+
+  {
+    fetchedCount > 0 && (
+      <p class="mb-8 text-sm text-gray-500 dark:text-gray-400">
+        학회 {fetchedCount}건은{' '}
+        <a href="https://huggingface.co/spaces/huggingface/ai-deadlines" class="link">
+          aideadlines
+        </a>
+        에서 주 1회 자동으로 받아옵니다. upstream이 틀렸거나 아직 안 올라온 날짜는
+        <code class="rounded bg-gray-100 px-1 dark:bg-gray-800">
+          content/conferences.yaml
+        </code>의 <code class="rounded bg-gray-100 px-1 dark:bg-gray-800">conferences</code> 에 같은
+        학회·연도로 적으면 덮어씁니다.
+      </p>
     )
   }
 
