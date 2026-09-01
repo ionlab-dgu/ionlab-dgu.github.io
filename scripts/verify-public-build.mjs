@@ -133,10 +133,24 @@ function report() {
   process.exit(0);
 }
 
-/** 문서에서 대조에 쓸 만한 문장을 뽑습니다 (템플릿 상투구는 제외). */
+/**
+ * 문서에서 대조에 쓸 만한 문장을 뽑습니다 (템플릿 상투구는 제외).
+ *
+ * **본문과 frontmatter를 모두 봅니다.** 예전에는 본문만 봤는데, 실제로 화면에
+ * 렌더되는 것은 오히려 frontmatter인 경우가 많습니다 — 논문 제목, 문서 제목,
+ * 연구 주제. 목록 페이지가 publicOnly() 없이 frontmatter만 뿌리면 본문은
+ * 한 글자도 새지 않으므로 본문만 대조하는 검사기는 이를 통과시킵니다.
+ * (랩 세미나 페이지를 만들며 일부러 publicOnly()를 빼고 확인한 결과 실제로 통과했습니다.)
+ */
 function distinctivePhrases(file) {
   const raw = fs.readFileSync(file, 'utf-8');
+  const match = raw.match(/^---\n([\s\S]*?)\n---\n/);
+  const frontmatter = match ? match[1] : '';
   const body = raw.replace(/^---\n[\s\S]*?\n---\n/, '');
+  return [...bodyPhrases(body), ...frontmatterPhrases(frontmatter)];
+}
+
+function bodyPhrases(body) {
   return body
     .split('\n')
     .map((l) => l.replace(/^[#>\-*\s]+/, '').trim())
@@ -148,6 +162,31 @@ function distinctivePhrases(file) {
         !/^[\[\]()`_*\s]+$/.test(l),
     )
     .slice(0, 5);
+}
+
+/**
+ * frontmatter에서 자유 텍스트 값만 뽑습니다.
+ *
+ * 조건이 "20자 이상 + 공백 포함"인 이유는 오탐을 막기 위해서입니다.
+ * member id(`ms-gildong-hong`), slug, 날짜, enum(`lab_seminar`)은 공백이 없고,
+ * 이것들은 공개 콘텐츠에도 정당하게 등장합니다. 그걸 누출로 잡으면 검사기가
+ * 늑대소년이 되어 아무도 안 믿게 됩니다. 대신 제목·요약처럼 문장 형태인 값은
+ * private 문서 고유일 가능성이 높아 대조 가치가 있습니다.
+ */
+function frontmatterPhrases(frontmatter) {
+  return frontmatter
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => !l.startsWith('#')) // 스키마 설명 주석은 렌더되지 않습니다
+    .map((l) =>
+      l
+        .replace(/^-\s*/, '') // 리스트 항목
+        .replace(/^[\w.-]+:\s*/, '') // key:
+        .replace(/^['"]|['"]$/g, '') // 따옴표
+        .trim(),
+    )
+    .filter((v) => v.length >= 20 && /\s/.test(v) && !v.startsWith('TODO'))
+    .slice(0, 3);
 }
 
 function walk(dir) {
