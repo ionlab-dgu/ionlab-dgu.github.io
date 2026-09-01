@@ -275,6 +275,14 @@ Node 버전이 낮습니다. 22.12 이상으로 올리세요 (`node -v`).
 
 ## 문서
 
-- [HANDOFF.md](./HANDOFF.md) — 아키텍처, 주요 결정 사항, 진행 상황, 겪은 함정
+- [labos-handoff.md](./labos-handoff.md) — **시스템 아키텍처·결정 사항·현황.**
+  랩 운영(미팅 프랙티스, research plan, 로드맵)까지 포함한 현행 정본입니다.
+  큰 변경이 있을 때 Claude Project knowledge에도 다시 올립니다.
+- [HANDOFF.md](./HANDOFF.md) — 구현 상세 아카이브. 실제 구현된 스키마·라우팅과
+  **개발하며 겪은 함정**이 자세히 적혀 있습니다. 코드를 고치기 전에 훑어보세요.
 - [CLAUDE.md](./CLAUDE.md) — 콘텐츠 스키마, 명명 규칙, private 격리 원칙, 커밋·PR 컨벤션
 - [핸드북](./content/handbook/) — 랩에서 일하는 방식 (온보딩·정책·튜토리얼)
+
+> 두 handoff 문서의 차이: `labos-handoff.md`가 **지금 무엇을 하기로 했는가**,
+> `HANDOFF.md`가 **코드가 왜 이렇게 되어 있는가**를 다룹니다.
+> 결정이 갈리면 `labos-handoff.md`가 최신입니다.
