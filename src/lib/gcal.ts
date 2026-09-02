@@ -12,14 +12,26 @@
  */
 import { calendars as calConfig, filled } from './config';
 import type { CalendarConfig } from './config';
-import { DEFAULT_TIMEZONE, dayInZone, parseIcal } from './ical';
+import { DEFAULT_TIMEZONE, dayInZone, expandEvents, parseIcal } from './ical';
 import type { CalendarEvent } from './types';
 
-export { parseIcal } from './ical';
+export { parseIcal, expandEvents } from './ical';
 
 /** 표시 기준 시간대. config/calendars.yaml 의 display_timezone 으로 바꿀 수 있습니다. */
 export function displayTimezone(): string {
   return filled(calConfig.display_timezone) ?? DEFAULT_TIMEZONE;
+}
+
+/**
+ * 반복 일정을 며칠치까지 펼칠지. config/calendars.yaml 의 fetch.expand_days.
+ *
+ * 무한히 펼칠 수는 없으니 창을 정해야 합니다. 화면이 보여주는 범위
+ * (/internal/calendar 가 60일)보다 짧으면 일정이 조용히 사라지므로 기본값을
+ * 거기에 맞춰 뒀습니다.
+ */
+export function expandDays(): number {
+  const configured = calConfig.fetch?.expand_days;
+  return typeof configured === 'number' && configured > 0 ? configured : 60;
 }
 
 /** ical URL을 결정합니다: 설정의 ical_url > 환경변수(env_var). 없으면 undefined. */
@@ -65,7 +77,12 @@ async function fetchCalendar(cal: CalendarConfig): Promise<CalendarEvent[]> {
     const res = await fetch(url, { signal: controller.signal });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const text = await res.text();
-    return parseIcal(text, cal.key, { timezone: displayTimezone() });
+    const zone = displayTimezone();
+    // 원본 VEVENT → 반복 회차 전개(+EXDATE 제외, 수정된 회차 병합).
+    return expandEvents(parseIcal(text, cal.key, { timezone: zone }), {
+      days: expandDays(),
+      timezone: zone,
+    });
   } catch (err) {
     const message = `[lab-os] 캘린더 '${cal.key}' 를 가져오지 못했습니다: ${String(err)}`;
     if (calConfig.fetch?.fail_on_error) throw new Error(message);

@@ -308,6 +308,7 @@ export function parseIcal(
           description: current.description,
           calendar: calendarKey,
           end: current.end,
+          startTzid: current.startTzid,
           rrule: current.rrule,
           exdates: current.exdates,
           recurrenceId: current.recurrenceId,
@@ -339,6 +340,9 @@ export function parseIcal(
         break;
       case 'DTSTART':
         startMoment = parseIcalMoment(prop.value, prop.params, zone);
+        // 반복 회차는 '같은 벽시계 시각'을 유지해야 합니다. 그러려면 어느 시간대의
+        // 벽시계였는지 알아야 하므로 TZID 를 버리지 않고 들고 갑니다.
+        current.startTzid = prop.params.TZID ?? zone;
         break;
       case 'DTEND': {
         const moment = parseIcalMoment(prop.value, prop.params, zone);
@@ -374,4 +378,314 @@ export function parseIcal(
   }
 
   return events.sort((a, b) => a.start.localeCompare(b.start));
+}
+
+// ─── 반복 일정 (RRULE) ──────────────────────────────────────
+
+/**
+ * 지원 범위를 의도적으로 좁혔습니다.
+ *
+ * 실제 랩 캘린더의 RRULE 137건은 **전부 FREQ=WEEKLY** 이고, 쓰이는 부품도
+ * UNTIL(117) / BYDAY(100) / WKST(95) / COUNT(20) / INTERVAL(3) 뿐입니다.
+ * BYSETPOS·BYMONTHDAY 같은 것은 하나도 없습니다. DAILY·MONTHLY 는 지금 쓰이지
+ * 않지만 앞으로 생길 수 있어 같이 넣었습니다.
+ *
+ * 여기 없는 규칙(BYMONTHDAY 등)을 만나면 전개를 포기하고 원본 한 건만 남깁니다.
+ * 틀린 날짜를 지어내는 것보다 낫습니다.
+ */
+export interface Rrule {
+  freq: 'DAILY' | 'WEEKLY' | 'MONTHLY';
+  interval: number;
+  count?: number;
+  /** UTC epoch ms. 종일 시리즈면 그 날의 끝. */
+  untilMs?: number;
+  /** SU·MO·… 요일 코드. WEEKLY 에서만 씁니다. */
+  byday?: string[];
+  /** 주의 시작 요일. 기본 MO. */
+  wkst: string;
+}
+
+const WEEKDAY_CODES = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+
+/** RRULE 문자열을 뜯습니다. 지원하지 않는 규칙이면 null. */
+export function parseRrule(value: string): Rrule | null {
+  const parts: Record<string, string> = {};
+  for (const chunk of value.split(';')) {
+    const eq = chunk.indexOf('=');
+    if (eq < 0) continue;
+    parts[chunk.slice(0, eq).trim().toUpperCase()] = chunk.slice(eq + 1).trim();
+  }
+
+  const freq = parts.FREQ?.toUpperCase();
+  if (freq !== 'DAILY' && freq !== 'WEEKLY' && freq !== 'MONTHLY') return null;
+
+  // 다룰 줄 모르는 부품이 하나라도 있으면 전개하지 않습니다.
+  const known = new Set(['FREQ', 'INTERVAL', 'COUNT', 'UNTIL', 'BYDAY', 'WKST']);
+  for (const key of Object.keys(parts)) {
+    if (!known.has(key)) return null;
+  }
+
+  const byday = parts.BYDAY?.split(',')
+    .map((d) => d.trim().toUpperCase())
+    .filter((d) => WEEKDAY_CODES.includes(d));
+
+  // BYDAY에 '2MO'(둘째 주 월요일) 같은 서수가 붙으면 위 필터에서 걸러지고
+  // 빈 배열이 됩니다. 그건 우리가 못 다루는 규칙이므로 포기합니다.
+  if (parts.BYDAY && (!byday || byday.length === 0)) return null;
+
+  let untilMs: number | undefined;
+  if (parts.UNTIL) {
+    const moment = parseIcalMoment(parts.UNTIL, {}, 'UTC');
+    if (!moment) return null;
+    untilMs = moment.allDay ? Date.parse(`${moment.date}T23:59:59Z`) : moment.utcMs!;
+  }
+
+  const interval = parts.INTERVAL ? Number(parts.INTERVAL) : 1;
+  if (!Number.isFinite(interval) || interval < 1) return null;
+
+  const count = parts.COUNT ? Number(parts.COUNT) : undefined;
+  if (count !== undefined && (!Number.isFinite(count) || count < 1)) return null;
+
+  return {
+    freq,
+    interval,
+    count,
+    untilMs,
+    byday: byday && byday.length ? byday : undefined,
+    wkst: parts.WKST?.toUpperCase() ?? 'MO',
+  };
+}
+
+/** 달력 날짜 산술은 UTC 자정 기준으로 합니다 (시간대 변환은 마지막에 한 번). */
+function civilToUtcNoon(p: ZonedParts): number {
+  return Date.UTC(p.year, p.month - 1, p.day);
+}
+
+function civilFromUtcNoon(ms: number, time: ZonedParts): ZonedParts {
+  const d = new Date(ms);
+  return {
+    year: d.getUTCFullYear(),
+    month: d.getUTCMonth() + 1,
+    day: d.getUTCDate(),
+    hour: time.hour,
+    minute: time.minute,
+    second: time.second,
+  };
+}
+
+function addDays(p: ZonedParts, n: number): ZonedParts {
+  return civilFromUtcNoon(civilToUtcNoon(p) + n * 86_400_000, p);
+}
+
+/** 월 더하기. 말일 넘침(2/30 등)은 RFC대로 건너뜁니다 → null. */
+function addMonths(p: ZonedParts, n: number): ZonedParts | null {
+  const total = p.year * 12 + (p.month - 1) + n;
+  const year = Math.floor(total / 12);
+  const month = (total % 12) + 1;
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  if (p.day > lastDay) return null;
+  return { ...p, year, month };
+}
+
+function dayOfWeek(p: ZonedParts): number {
+  return new Date(civilToUtcNoon(p)).getUTCDay();
+}
+
+/** 무한 루프 방지. 주 단위로 100년어치면 충분합니다. */
+const MAX_OCCURRENCES = 6000;
+
+/**
+ * 반복 규칙을 실제 발생 시각(UTC ms)들로 펼칩니다.
+ *
+ * COUNT 는 **시리즈 처음부터** 세야 맞습니다. 2021년에 시작한 COUNT=15 시리즈는
+ * 2021년에 끝난 것이지, 창(window) 안에서 15번 나오는 게 아닙니다. 그래서
+ * DTSTART 부터 세되, 창 끝을 지나면 바로 멈춥니다.
+ */
+export function expandRrule(
+  rrule: Rrule,
+  startUtcMs: number,
+  zone: string,
+  windowEndMs: number,
+): number[] {
+  const anchor = partsInZone(startUtcMs, zone);
+  if (!anchor) return [startUtcMs];
+
+  const out: number[] = [];
+  let emitted = 0;
+
+  const push = (parts: ZonedParts): 'ok' | 'stop' => {
+    const ms = wallTimeToUtc(parts, zone);
+    if (ms < startUtcMs) return 'ok'; // DTSTART 이전 후보는 시리즈에 없습니다
+    if (rrule.untilMs !== undefined && ms > rrule.untilMs) return 'stop';
+    emitted++;
+    if (rrule.count !== undefined && emitted > rrule.count) return 'stop';
+    out.push(ms);
+    if (ms > windowEndMs) return 'stop'; // 창을 넘었으면 더 볼 필요 없습니다
+    return 'ok';
+  };
+
+  if (rrule.freq === 'WEEKLY') {
+    const wkstIndex = Math.max(0, WEEKDAY_CODES.indexOf(rrule.wkst));
+    const codes = rrule.byday ?? [WEEKDAY_CODES[dayOfWeek(anchor)]!];
+    // 주 안에서의 순서를 WKST 기준으로 정렬해야 발생 순서가 맞습니다.
+    const offsets = codes
+      .map((c) => (WEEKDAY_CODES.indexOf(c) - wkstIndex + 7) % 7)
+      .sort((a, b) => a - b);
+
+    const weekStart = addDays(anchor, -((dayOfWeek(anchor) - wkstIndex + 7) % 7));
+
+    for (let w = 0; w < MAX_OCCURRENCES; w++) {
+      const base = addDays(weekStart, w * rrule.interval * 7);
+      let stopped = false;
+      for (const offset of offsets) {
+        if (push(addDays(base, offset)) === 'stop') {
+          stopped = true;
+          break;
+        }
+      }
+      if (stopped) break;
+    }
+  } else if (rrule.freq === 'DAILY') {
+    for (let i = 0; i < MAX_OCCURRENCES; i++) {
+      if (push(addDays(anchor, i * rrule.interval)) === 'stop') break;
+    }
+  } else {
+    for (let i = 0; i < MAX_OCCURRENCES; i++) {
+      const parts = addMonths(anchor, i * rrule.interval);
+      if (!parts) continue; // 그 달에 없는 날짜는 건너뜁니다 (RFC 5545)
+      if (push(parts) === 'stop') break;
+    }
+  }
+
+  return out;
+}
+
+export interface ExpandOptions {
+  /** 창의 시작. 기본 지금. */
+  from?: Date;
+  /** 창의 길이(일). 기본 60. */
+  days?: number;
+  timezone?: string;
+}
+
+/**
+ * parseIcal() 결과를 받아 반복 일정을 실제 회차로 펼칩니다.
+ *
+ * 세 가지를 함께 처리합니다. 하나라도 빠지면 지금보다 나빠집니다:
+ *
+ *   RRULE          매주 반복을 실제 날짜마다 만들어냅니다.
+ *   EXDATE         그중 취소된 회차를 뺍니다.
+ *   RECURRENCE-ID  특정 회차만 시간·제목이 바뀐 경우, 원래 자리의 회차를
+ *                  **지우고** 수정본을 넣습니다. 이걸 안 하면 원래 시각의
+ *                  유령 일정과 옮겨진 일정이 둘 다 뜹니다.
+ *                  실제 캘린더에서 VEVENT 1198개 중 250개가 이 오버라이드입니다.
+ */
+export function expandEvents(events: CalendarEvent[], opts: ExpandOptions = {}): CalendarEvent[] {
+  const zone = opts.timezone ?? DEFAULT_TIMEZONE;
+  const from = opts.from ?? new Date();
+  const windowStartMs = from.getTime();
+  const windowEndMs = windowStartMs + (opts.days ?? 60) * 86_400_000;
+
+  // uid → (원래 회차 시각 → 수정본)
+  const overrides = new Map<string, Map<string, CalendarEvent>>();
+  for (const event of events) {
+    if (!event.recurrenceId) continue;
+    const forUid = overrides.get(event.uid) ?? new Map<string, CalendarEvent>();
+    forUid.set(event.recurrenceId, event);
+    overrides.set(event.uid, forUid);
+  }
+
+  const used = new Set<CalendarEvent>();
+  const out: CalendarEvent[] = [];
+
+  for (const event of events) {
+    if (event.recurrenceId) continue; // 오버라이드는 마스터를 통해서만 나옵니다
+
+    // 반복이 아니거나(대부분), 우리가 못 다루는 규칙이면 원본 한 건만 남깁니다.
+    const rule = event.rrule ? parseRrule(event.rrule) : null;
+    if (!rule) {
+      if (inWindow(event, windowStartMs, windowEndMs)) out.push(stripRecurrenceFields(event));
+      continue;
+    }
+
+    const tz = event.startTzid ?? zone;
+
+    // 종일 시리즈는 start 가 YYYY-MM-DD 라 Date.parse 로는 그 날 UTC 자정이 됩니다.
+    // 표시 시간대의 자정으로 잡아야 날짜가 밀리지 않습니다.
+    const startMs = event.allDay
+      ? wallTimeToUtc(
+          {
+            year: Number(event.start.slice(0, 4)),
+            month: Number(event.start.slice(5, 7)),
+            day: Number(event.start.slice(8, 10)),
+            hour: 0,
+            minute: 0,
+            second: 0,
+          },
+          tz,
+        )
+      : Date.parse(event.start);
+    if (Number.isNaN(startMs)) {
+      out.push(stripRecurrenceFields(event));
+      continue;
+    }
+    const excluded = new Set(event.exdates ?? []);
+    const forUid = overrides.get(event.uid);
+
+    for (const occurrenceMs of expandRrule(rule, startMs, tz, windowEndMs)) {
+      const occurrence: IcalMoment = event.allDay
+        ? { allDay: true, date: dayInZone(occurrenceMs, tz) }
+        : { allDay: false, utcMs: occurrenceMs };
+      const iso = event.allDay ? occurrence.date! : new Date(occurrenceMs).toISOString();
+      if (excluded.has(iso)) continue;
+
+      const override = forUid?.get(iso);
+      if (override) {
+        // 수정본은 자기 시각을 갖고 있습니다. 창 안이면 넣습니다.
+        if (inWindow(override, windowStartMs, windowEndMs)) {
+          out.push(stripRecurrenceFields(override));
+        }
+        used.add(override);
+        continue;
+      }
+
+      if (occurrenceMs < windowStartMs || occurrenceMs > windowEndMs) continue;
+
+      out.push({
+        ...stripRecurrenceFields(event),
+        ...momentFields(occurrence, zone),
+        recurring: true,
+      });
+    }
+  }
+
+  // 마스터가 이 창에서 만들어내지 않은 오버라이드 — 예컨대 창 밖의 회차를
+  // 창 안으로 옮긴 경우. 그냥 두면 사라지므로 따로 챙깁니다.
+  for (const forUid of overrides.values()) {
+    for (const override of forUid.values()) {
+      if (used.has(override)) continue;
+      if (!inWindow(override, windowStartMs, windowEndMs)) continue;
+      out.push(stripRecurrenceFields(override));
+    }
+  }
+
+  return out.sort((a, b) => a.start.localeCompare(b.start));
+}
+
+function inWindow(event: CalendarEvent, startMs: number, endMs: number): boolean {
+  if (event.allDay) {
+    const day = event.day;
+    return (
+      day >= new Date(startMs).toISOString().slice(0, 10) &&
+      day <= new Date(endMs).toISOString().slice(0, 10)
+    );
+  }
+  const ms = Date.parse(event.start);
+  return !Number.isNaN(ms) && ms >= startMs && ms <= endMs;
+}
+
+/** 전개가 끝나면 원본 규칙 필드는 화면에 쓸모가 없으므로 떨어냅니다. */
+function stripRecurrenceFields(event: CalendarEvent): CalendarEvent {
+  const { rrule, exdates, recurrenceId, startTzid, ...rest } = event;
+  return rest;
 }

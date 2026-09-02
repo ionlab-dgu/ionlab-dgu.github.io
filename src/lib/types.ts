@@ -323,6 +323,13 @@ export interface CalendarEvent {
   description?: string;
   /** config/calendars.yaml 의 key */
   calendar: string;
+  /**
+   * DTSTART 가 어느 시간대의 벽시계 시각이었는지 (TZID).
+   *
+   * 반복 회차는 "매주 수요일 15:00 KST"처럼 **벽시계 기준**으로 반복합니다.
+   * UTC ms 에 7일치를 더하는 방식은 DST가 있는 지역에서 한 시간씩 어긋납니다.
+   */
+  startTzid?: string;
   /** RRULE 원문. expandEvents() 가 전개하고 나면 사라집니다. */
   rrule?: string;
   /** 이 시리즈에서 제외할 회차 (EXDATE). start 와 같은 표기입니다. */

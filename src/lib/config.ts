@@ -115,7 +115,13 @@ export interface ExternalSourceConfig {
 }
 
 export interface CalendarsConfig {
-  fetch: { mode: 'build' | 'runtime'; timeout_ms: number; fail_on_error: boolean };
+  fetch: {
+    mode: 'build' | 'runtime';
+    timeout_ms: number;
+    fail_on_error: boolean;
+    /** 반복 일정을 며칠치까지 펼칠지. 기본 60. */
+    expand_days?: number;
+  };
   /** 화면에 날짜·시각을 보여줄 기준 시간대 (IANA). 기본 Asia/Seoul. */
   display_timezone?: string;
   calendars: CalendarConfig[];

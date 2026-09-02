@@ -14,6 +14,9 @@ fetch:
   timeout_ms: 8000
   # fetch 실패해도 빌드는 성공해야 함 (empty state로 렌더)
   fail_on_error: false
+  # 반복 일정(RRULE)을 오늘부터 며칠치까지 펼칠지.
+  # /internal/calendar 가 60일치를 보여주므로 그보다 짧게 두면 일정이 조용히 사라집니다.
+  expand_days: 60
 
 calendars:
   - key: lab-general
