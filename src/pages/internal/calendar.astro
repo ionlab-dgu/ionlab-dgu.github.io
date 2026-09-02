@@ -2,26 +2,22 @@
 import InternalLayout from '../../layouts/InternalLayout.astro';
 import PageHeader from '../../components/common/PageHeader.astro';
 import EmptyState from '../../components/common/EmptyState.astro';
-import { fetchAllEvents, calendarMeta } from '../../lib/gcal';
+import { fetchAllEvents, upcomingEvents, calendarMeta } from '../../lib/gcal';
 import { calendars } from '../../lib/config';
 import { dayKey } from '../../lib/attendance';
 
 const events = await fetchAllEvents();
 const today = dayKey();
 
-// 오늘 이후 60일치만
-const horizon = new Date(Date.now() + 60 * 86_400_000).toISOString().slice(0, 10);
-const upcoming = events.filter((e) => {
-  const d = e.start.slice(0, 10);
-  return d >= today && d <= horizon;
-});
+// 오늘 이후 60일치만. 비교는 표시 시간대의 날짜(e.day)로 합니다 —
+// start 는 UTC라 잘라 쓰면 경계 일정이 하루씩 밀립니다.
+const upcoming = upcomingEvents(events, 60);
 
 // 날짜별 그룹
 const byDay = new Map<string, typeof upcoming>();
 for (const e of upcoming) {
-  const d = e.start.slice(0, 10);
-  if (!byDay.has(d)) byDay.set(d, []);
-  byDay.get(d)!.push(e);
+  if (!byDay.has(e.day)) byDay.set(e.day, []);
+  byDay.get(e.day)!.push(e);
 }
 const days = [...byDay.entries()];
 
@@ -31,17 +27,6 @@ function dayLabel(d: string): string {
   const date = new Date(`${d}T00:00:00+09:00`);
   const weekday = date.toLocaleDateString('ko-KR', { weekday: 'short', timeZone: 'Asia/Seoul' });
   return `${d} (${weekday})${d === today ? ' · 오늘' : ''}`;
-}
-
-function timeLabel(iso: string, allDay: boolean): string {
-  if (allDay) return '종일';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleTimeString('ko-KR', {
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'Asia/Seoul',
-  });
 }
 ---
 
@@ -82,7 +67,7 @@ function timeLabel(iso: string, allDay: boolean): string {
               {dayEvents.map((e) => (
                 <li class="flex items-baseline gap-4 py-2.5">
                   <time class="w-16 shrink-0 font-mono text-sm text-gray-500 tabular-nums dark:text-gray-400">
-                    {timeLabel(e.start, e.allDay)}
+                    {e.time ?? '종일'}
                   </time>
                   <div class="min-w-0">
                     <p>{e.summary}</p>

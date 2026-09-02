@@ -302,13 +302,35 @@ export interface Presence {
 export interface CalendarEvent {
   uid: string;
   summary: string;
+  /**
+   * 시각이 있는 일정이면 **UTC ISO 문자열**(...Z), 종일 일정이면 YYYY-MM-DD.
+   *
+   * 정렬·비교에만 쓰세요. 화면에 그대로 찍으면 안 됩니다 — 표시용은 day/time 입니다.
+   */
   start: string;
   end?: string;
   allDay: boolean;
+  /**
+   * 표시 시간대(기본 Asia/Seoul) 기준 YYYY-MM-DD.
+   *
+   * start.slice(0, 10) 으로 대신하지 마세요. start 는 UTC라 KST 오전 8시 일정이
+   * 전날로 묶입니다. 그 계산을 매번 틀리지 않으려고 파싱 시점에 미리 넣어 둡니다.
+   */
+  day: string;
+  /** 표시 시간대 기준 HH:mm. 종일 일정이면 없습니다. */
+  time?: string;
   location?: string;
   description?: string;
   /** config/calendars.yaml 의 key */
   calendar: string;
+  /** RRULE 원문. expandEvents() 가 전개하고 나면 사라집니다. */
+  rrule?: string;
+  /** 이 시리즈에서 제외할 회차 (EXDATE). start 와 같은 표기입니다. */
+  exdates?: string[];
+  /** 이 VEVENT가 반복 시리즈의 특정 회차를 덮어쓰는 것이라면 그 회차의 원래 시각. */
+  recurrenceId?: string;
+  /** RRULE에서 전개된 회차인지. 원본 VEVENT면 false/undefined. */
+  recurring?: boolean;
 }
 
 export interface Conference {

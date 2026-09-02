@@ -116,6 +116,8 @@ export interface ExternalSourceConfig {
 
 export interface CalendarsConfig {
   fetch: { mode: 'build' | 'runtime'; timeout_ms: number; fail_on_error: boolean };
+  /** 화면에 날짜·시각을 보여줄 기준 시간대 (IANA). 기본 Asia/Seoul. */
+  display_timezone?: string;
   calendars: CalendarConfig[];
   external_sources?: ExternalSourceConfig[];
 }

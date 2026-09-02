@@ -29,17 +29,10 @@ const later = deadlines.filter((d) => d.daysLeft > IMMINENT_DAYS);
 const events = await fetchAllEvents({ visibility: 'public' });
 const nextEvents = upcomingEvents(events, 30).slice(0, 8);
 
-function eventDateLabel(iso: string, allDay: boolean): string {
-  const day = iso.slice(0, 10);
-  if (allDay) return day;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return day;
-  const time = d.toLocaleTimeString('en-GB', {
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'Asia/Seoul',
-  });
-  return `${day} ${time}`;
+// day/time 은 파싱 시점에 표시 시간대로 계산된 값입니다 (src/lib/ical.ts).
+// 여기서 new Date() 를 쓰면 빌드 환경(UTC)에서 결과가 달라집니다.
+function eventDateLabel(e: { day: string; time?: string }): string {
+  return e.time ? `${e.day} ${e.time}` : e.day;
 }
 ---
 
@@ -132,7 +125,7 @@ function eventDateLabel(iso: string, allDay: boolean): string {
             {nextEvents.map((e) => (
               <li class="flex items-baseline gap-4 py-2.5">
                 <time class="w-36 shrink-0 font-mono text-sm text-gray-500 tabular-nums dark:text-gray-400">
-                  {eventDateLabel(e.start, e.allDay)}
+                  {eventDateLabel(e)}
                 </time>
                 <div class="min-w-0">
                   <p>{e.summary}</p>

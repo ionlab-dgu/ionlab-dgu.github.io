@@ -11,16 +11,8 @@ const today = dayKey();
 const all = await fetchAllEvents();
 const events = eventsOnDay(all, today);
 
-function timeLabel(iso: string, allDay: boolean): string {
-  if (allDay) return '종일';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleTimeString('ko-KR', {
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'Asia/Seoul',
-  });
-}
+// 시각은 파싱 시점에 표시 시간대로 계산돼 e.time 에 들어 있습니다.
+// 여기서 new Date() 를 쓰면 빌드 환경(UTC)에서 시간이 밀립니다.
 ---
 
 <section class="card">
@@ -42,7 +34,7 @@ function timeLabel(iso: string, allDay: boolean): string {
           {events.map((e) => (
             <li class="flex items-baseline gap-3 py-2.5">
               <time class="w-14 shrink-0 font-mono text-sm text-gray-500 tabular-nums dark:text-gray-400">
-                {timeLabel(e.start, e.allDay)}
+                {e.time ?? '종일'}
               </time>
               <div class="min-w-0">
                 <p class="truncate">{e.summary}</p>
