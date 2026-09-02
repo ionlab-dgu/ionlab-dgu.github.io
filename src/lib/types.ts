@@ -302,13 +302,42 @@ export interface Presence {
 export interface CalendarEvent {
   uid: string;
   summary: string;
+  /**
+   * 시각이 있는 일정이면 **UTC ISO 문자열**(...Z), 종일 일정이면 YYYY-MM-DD.
+   *
+   * 정렬·비교에만 쓰세요. 화면에 그대로 찍으면 안 됩니다 — 표시용은 day/time 입니다.
+   */
   start: string;
   end?: string;
   allDay: boolean;
+  /**
+   * 표시 시간대(기본 Asia/Seoul) 기준 YYYY-MM-DD.
+   *
+   * start.slice(0, 10) 으로 대신하지 마세요. start 는 UTC라 KST 오전 8시 일정이
+   * 전날로 묶입니다. 그 계산을 매번 틀리지 않으려고 파싱 시점에 미리 넣어 둡니다.
+   */
+  day: string;
+  /** 표시 시간대 기준 HH:mm. 종일 일정이면 없습니다. */
+  time?: string;
   location?: string;
   description?: string;
   /** config/calendars.yaml 의 key */
   calendar: string;
+  /**
+   * DTSTART 가 어느 시간대의 벽시계 시각이었는지 (TZID).
+   *
+   * 반복 회차는 "매주 수요일 15:00 KST"처럼 **벽시계 기준**으로 반복합니다.
+   * UTC ms 에 7일치를 더하는 방식은 DST가 있는 지역에서 한 시간씩 어긋납니다.
+   */
+  startTzid?: string;
+  /** RRULE 원문. expandEvents() 가 전개하고 나면 사라집니다. */
+  rrule?: string;
+  /** 이 시리즈에서 제외할 회차 (EXDATE). start 와 같은 표기입니다. */
+  exdates?: string[];
+  /** 이 VEVENT가 반복 시리즈의 특정 회차를 덮어쓰는 것이라면 그 회차의 원래 시각. */
+  recurrenceId?: string;
+  /** RRULE에서 전개된 회차인지. 원본 VEVENT면 false/undefined. */
+  recurring?: boolean;
 }
 
 export interface Conference {
@@ -325,6 +354,40 @@ export interface Conference {
   tags?: string[];
   verified_by?: string | null;
   verified_on?: string | null;
+  /** content/conferences.yaml 의 tracked_venues 에서 물려받는 분류. */
+  category?: string;
+  /** upstream 항목 id (aideadlines 의 'iclr26' 등). 같은 항목을 다시 찾을 때 씁니다. */
+  source_id?: string;
+  /**
+   * 출처. 없으면 사람이 직접 적은 것('manual')으로 봅니다.
+   *
+   * /internal/deadlines 의 "확인되지 않은 학회 날짜" 경고는 사람이 예년 패턴으로
+   * 추측해 적은 항목에만 붙어야 하므로, 자동 수집분을 이 필드로 갈라냅니다.
+   */
+  source?: 'manual' | 'aideadlines';
+}
+
+/** content/conferences.yaml 의 tracked_venues 한 줄. 자동 수집 대상. */
+export interface TrackedVenue {
+  name: string;
+  /** upstream 파일명 (huggingface/ai-deadlines 의 src/data/conferences/<source>.yml). */
+  source: string;
+  category?: string;
+}
+
+/** content/conferences.yaml 의 display 블록. */
+export interface ConferenceDisplayConfig {
+  show_upcoming_only: boolean;
+  /** 내림차순. 남은 일수가 이 값 이하로 떨어질 때마다 강조 단계가 올라갑니다. */
+  highlight_days: number[];
+  default_view: 'list' | 'calendar';
+}
+
+/** scripts/fetch-conferences.mjs 가 만드는 캐시 파일의 모양. */
+export interface FetchedConferences {
+  generated_at?: string;
+  source?: string;
+  venues: Conference[];
 }
 
 /** 학회 데드라인과 과제 리포트 데드라인을 하나로 합친 뷰 모델. */

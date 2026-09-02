@@ -93,16 +93,53 @@ export interface CalendarConfig {
   ical_url?: string;
   env_var?: string;
   visibility?: 'public' | 'internal';
+  /**
+   * 공개 사이트 산출물에 실어도 되는가. 기본은 안 됨(undefined = false).
+   *
+   * visibility 와 중복처럼 보이지만 일부러 둘로 나눴습니다. visibility 는
+   * "사이트 어느 화면에 보여줄까"이고, 이 값은 "공개 배포본에 실려도 되는가"입니다.
+   * 한쪽을 실수로 바꿔도 다른 쪽이 남습니다 (gcal.ts 의 isPublicSafe).
+   */
+  default_visible_public?: boolean;
+}
+
+/**
+ * GCal이 아닌 외부 소스 (지금은 학회 데드라인 하나).
+ *
+ * GCal 캘린더와 달리 빌드 시점에 fetch하지 않습니다. 워크플로가 받아와
+ * cache_path 의 JSON으로 커밋해 두고, 사이트는 그 캐시만 읽습니다.
+ */
+export interface ExternalSourceConfig {
+  key: string;
+  label: string;
+  color?: string;
+  description?: string;
+  visibility?: 'public' | 'internal';
+  source?: string;
+  base_url?: string;
+  /** 저장소 루트 기준 상대 경로. */
+  cache_path?: string;
+  sync_schedule?: string;
 }
 
 export interface CalendarsConfig {
-  fetch: { mode: 'build' | 'runtime'; timeout_ms: number; fail_on_error: boolean };
+  fetch: {
+    mode: 'build' | 'runtime';
+    timeout_ms: number;
+    fail_on_error: boolean;
+    /** 반복 일정을 며칠치까지 펼칠지. 기본 60. */
+    expand_days?: number;
+  };
+  /** 화면에 날짜·시각을 보여줄 기준 시간대 (IANA). 기본 Asia/Seoul. */
+  display_timezone?: string;
   calendars: CalendarConfig[];
+  external_sources?: ExternalSourceConfig[];
 }
 
 export const calendars = loadYaml<CalendarsConfig>('calendars.yaml', {
   fetch: { mode: 'build', timeout_ms: 8000, fail_on_error: false },
   calendars: [],
+  external_sources: [],
 });
 
 // ─── access.yaml ────────────────────────────────────────────

@@ -1,11 +1,103 @@
-# 관심 학회 데드라인 (aideadlines 스타일의 subset — 우리가 실제로 낼 곳만).
+# 관심 학회 데드라인 — 우리가 실제로 낼 곳만.
 #
-# ⚠️ 아래 날짜는 예년 패턴을 바탕으로 한 **초안**입니다.
-#    투고를 결정하면 반드시 공식 CFP에서 확인하고 이 파일을 갱신하세요.
-#    확인한 사람은 verified_by / verified_on 을 채웁니다.
+# 이 파일은 세 부분입니다:
+#   1. tracked_venues — 자동 수집 대상 venue 목록 (사람이 고르고, 날짜는 기계가 채움)
+#   2. display        — 표시 규칙
+#   3. conferences    — 사람이 직접 확인해 적는 목록 (자동 수집분을 덮어씀)
 #
 # 시간대는 모두 AoE(Anywhere on Earth) 기준으로 적습니다.
 # 대시보드는 D-30 이내를 강조 표시합니다.
+
+# ─────────────────────────────────────────────────────────────
+# 1. tracked_venues — 자동 수집 대상
+#
+# scripts/fetch-conferences.mjs 가 aideadlines에서 **이 목록의 venue만** 받아와
+# src/data/conferences-fetched.json 에 캐시합니다. 주 1회 워크플로가 돌립니다.
+#
+#   source: huggingface/ai-deadlines 의 src/data/conferences/<source>.yml 파일명
+#           (여기 적은 이름이 곧 URL이 됩니다. 오타가 나면 그 venue만 조용히 빠집니다.)
+#
+# 낼 생각이 없는 학회를 넣으면 데드라인 목록이 소음으로 채워집니다. 실제로
+# 투고를 고려하는 곳만 두세요.
+
+tracked_venues:
+  # Tier 1 General ML
+  - name: NeurIPS
+    source: neurips
+    category: ml_general
+  - name: ICML
+    source: icml
+    category: ml_general
+  - name: ICLR
+    source: iclr
+    category: ml_general
+
+  # AI General
+  - name: AAAI
+    source: aaai
+    category: ai_general
+  - name: IJCAI
+    source: ijcai
+    category: ai_general
+
+  # Vision
+  - name: CVPR
+    source: cvpr
+    category: vision
+  - name: ECCV
+    source: eccv
+    category: vision
+  - name: ICCV
+    source: iccv
+    category: vision
+
+  # NLP
+  - name: ACL
+    source: acl
+    category: nlp
+  - name: EMNLP
+    source: emnlp
+    category: nlp
+  - name: NAACL
+    source: naacl
+    category: nlp
+
+  # Theory / Stats
+  - name: AISTATS
+    source: aistats
+    category: theory_stats
+  - name: UAI
+    source: uai
+    category: theory_stats
+
+  # Data Mining
+  - name: KDD
+    source: kdd
+    category: data_mining
+  - name: WSDM
+    source: wsdm
+    category: data_mining
+  - name: ICDM
+    source: icdm
+    category: data_mining
+
+# ─────────────────────────────────────────────────────────────
+# 2. display — /calendar 와 /internal/deadlines 의 표시 규칙
+
+display:
+  # 지난 마감은 목록에서 감춥니다 (/internal/deadlines 는 접힌 섹션에 따로 보여줌).
+  show_upcoming_only: true
+  # 남은 일수가 이 값 이하로 떨어질 때마다 배지 색이 올라갑니다. 내림차순.
+  highlight_days: [30, 14, 7, 3]
+  # list | calendar — 지금은 list만 구현돼 있습니다.
+  default_view: list
+
+# ─────────────────────────────────────────────────────────────
+# 3. conferences — 사람이 직접 확인해 적는 목록
+#
+# 자동 수집분과 **같은 학회·같은 연도**가 여기 있으면 이쪽이 이깁니다.
+# upstream이 틀렸거나 아직 안 올라온 날짜를 우리가 덮어쓰기 위한 자리입니다.
+# 공식 CFP를 확인했다면 verified_by / verified_on 을 채우세요.
 
 conferences:
   - name: NeurIPS

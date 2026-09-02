@@ -64,20 +64,20 @@ GitHub OAuth + org 멤버십 검증은 Phase 2에서 붙입니다 (`src/lib/auth
 **스키마의 정본은 `src/lib/types.ts`입니다.** 각 타입의 `_template.md` frontmatter 주석은
 그 사본이므로, 스키마를 바꾸면 **둘 다** 고쳐야 합니다.
 
-| 타입            | 위치                                | 형태                                              |
-| --------------- | ----------------------------------- | ------------------------------------------------- |
-| Member          | `content/members/<id>.md`           | 단일 파일                                         |
-| ResearchProject | `content/research/<slug>/`          | 폴더 (index + 부속 문서 + meetings/)              |
-| Grant           | `content/grants/<slug>/`            | 폴더 (index + deliverables + reports + meetings/) |
-| Publication     | `content/publications/<slug>.md`    | 단일 파일 (+ `refs.bib`)                          |
-| News            | `content/news/<slug>.md`            | 단일 파일                                         |
-| Handbook        | `content/handbook/**/*.md`          | 섹션 폴더                                         |
-| Dataset / Model | `content/datasets                   | models/<slug>.md`                                 | 단일 파일 |
-| Seminar         | `content/seminars/<date>-<type>.md` | 단일 파일                                         |
-| LabSeminar      | `content/lab-seminars/<학기>/YYYY-MM-DD.md` | 학기 폴더 (+ `_rotation-<학기>.yaml`)     |
-| Conference      | `content/conferences.yaml`          | 단일 YAML                                         |
-| Attendance      | `data/attendance/YYYY-MM.jsonl`     | append-only JSONL                                 |
-| ResearchPlan    | **private** `content/research-plans/<member-id>/<학기>.md` | 학생 폴더               |
+| 타입            | 위치                                                       | 형태                                              |
+| --------------- | ---------------------------------------------------------- | ------------------------------------------------- |
+| Member          | `content/members/<id>.md`                                  | 단일 파일                                         |
+| ResearchProject | `content/research/<slug>/`                                 | 폴더 (index + 부속 문서 + meetings/)              |
+| Grant           | `content/grants/<slug>/`                                   | 폴더 (index + deliverables + reports + meetings/) |
+| Publication     | `content/publications/<slug>.md`                           | 단일 파일 (+ `refs.bib`)                          |
+| News            | `content/news/<slug>.md`                                   | 단일 파일                                         |
+| Handbook        | `content/handbook/**/*.md`                                 | 섹션 폴더                                         |
+| Dataset / Model | `content/datasets                                          | models/<slug>.md`                                 | 단일 파일 |
+| Seminar         | `content/seminars/<date>-<type>.md`                        | 단일 파일                                         |
+| LabSeminar      | `content/lab-seminars/<학기>/YYYY-MM-DD.md`                | 학기 폴더 (+ `_rotation-<학기>.yaml`)             |
+| Conference      | `content/conferences.yaml`                                 | 단일 YAML                                         |
+| Attendance      | `data/attendance/YYYY-MM.jsonl`                            | append-only JSONL                                 |
+| ResearchPlan    | **private** `content/research-plans/<member-id>/<학기>.md` | 학생 폴더                                         |
 
 ### Seminar와 LabSeminar의 구분
 
@@ -160,11 +160,51 @@ scripts/         콘텐츠 스캐폴드 CLI (의존성 없이 Node 내장 모듈
   빈 화면이나 크래시는 안 됩니다.
 - **외부 fetch는 실패해도 빌드를 깨지 않습니다.** `gcal.ts`처럼 빈 배열을 반환하고
   경고만 남기세요. 캘린더가 안 열린다고 사이트가 배포되지 않으면 안 됩니다.
+- **시각을 다룰 때 `new Date('2026-09-02T15:00:00')` 처럼 오프셋 없는 문자열을 쓰지 마세요.**
+  실행 환경의 로컬 시간으로 해석돼 로컬(KST)과 CI(UTC)의 결과가 달라집니다.
+  캘린더에서 실제로 9시간이 밀리는 버그가 있었습니다 — 아래 "캘린더 시각" 참고.
 - **경로는 `src/lib/paths.ts`의 상수를 쓰세요.** `import.meta.url` 기준으로 루트를 계산하면
   빌드 시 `dist/.prerender/` 안으로 해석되어 조용히 깨집니다 (실제로 겪은 버그입니다).
 - **Tailwind v4**: 컴포넌트 `<style>` 블록에서 `@apply`를 쓰려면 `@reference`가 필요합니다.
   그냥 `src/styles/global.css`에 정의하세요.
 - 새 의존성은 신중히. 지금 런타임 의존성은 `astro`, `marked`, `js-yaml`, `gray-matter`뿐입니다.
+
+### 캘린더 시각 (건드리기 전에 읽으세요)
+
+iCal 파싱은 `src/lib/ical.ts`에 있습니다. `gcal.ts`는 가져오기·설정만 합니다.
+
+- **`CalendarEvent.start`은 UTC입니다.** 정렬·비교에만 쓰세요.
+  화면에 쓸 날짜·시각은 파싱 시점에 표시 시간대로 계산해 둔 `day`(YYYY-MM-DD)와
+  `time`(HH:mm)입니다. **`start.slice(0, 10)`으로 날짜를 만들지 마세요** —
+  KST 오전 8시 일정이 전날로 묶입니다.
+- **`.astro`에서 `new Date()`를 부르지 마세요.** 그러라고 `day`/`time`을 미리 넣어 둡니다.
+- 시간대 변환은 `Intl`(ICU 내장)로 합니다. luxon·date-fns-tz는 필요 없습니다.
+  Asia/Seoul이 +09:00 고정이라고 상수로 처리하지 마세요 — 해외 학회 일정이
+  하나만 들어와도 깨집니다.
+- **반복 일정은 전개됩니다** (`expandEvents`). RRULE(WEEKLY/DAILY/MONTHLY +
+  INTERVAL/COUNT/UNTIL/BYDAY/WKST), EXDATE, RECURRENCE-ID를 함께 처리합니다.
+  RECURRENCE-ID를 빼먹으면 원래 시각의 유령 일정과 옮겨진 일정이 둘 다 뜹니다.
+  못 다루는 규칙(BYSETPOS 등)을 만나면 전개를 포기하고 원본 한 건만 남깁니다 —
+  틀린 날짜를 지어내지 않는 쪽이 낫기 때문입니다.
+- 전개 범위는 `config/calendars.yaml`의 `fetch.expand_days`(기본 60)입니다.
+  화면이 보여주는 범위보다 짧게 두면 일정이 조용히 사라집니다.
+- 이 동작은 `test/ical.test.ts`가 지킵니다. **`TZ=Asia/Seoul`과 `TZ=UTC` 양쪽에서**
+  돌려야 의미가 있습니다 (`pnpm test`가 두 번 돌립니다).
+
+**캘린더 일정은 공개 빌드에 절대 들어가지 않습니다.**
+`PUBLIC_ONLY=1`이면 `fetchAllEvents()`가 무조건 빈 배열을 반환합니다
+(`src/lib/gcal.ts`). 이 줄을 지우거나 우회하지 마세요.
+
+이게 필요한 이유: Phase 1에는 로그인이 없고 `/internal/*`도 정적으로 빌드돼
+공개 URL로 나갑니다. 그래서 **"공개 페이지에만 안 쓰면 안전하다"가 성립하지
+않습니다.** 실제로 `ical_url`을 채웠더니 `dist/internal/calendar/index.html`과
+`dist/internal/index.html`에 미팅 제목("동경 미팅" 등)이 그대로 실렸습니다.
+
+`config/calendars.yaml`의 모든 캘린더는 `visibility: internal` +
+`default_visible_public: false`입니다. 공개 페이지에 일정을 내보내려면 두 값을
+모두 뒤집어야 하고(`gcal.ts`의 `isPublicSafe`), 그 위에 `PUBLIC_ONLY` 게이트가
+한 겹 더 있습니다. **일부러 세 겹입니다.** Phase 2에서 인증이 붙기 전까지
+이 전제를 바꾸지 마세요.
 
 ### 브랜드 색 (건드리기 전에 읽으세요)
 
@@ -186,11 +226,12 @@ scripts/         콘텐츠 스캐폴드 CLI (의존성 없이 Node 내장 모듈
 
 ```bash
 pnpm check    # astro check — 0 errors를 유지합니다
+pnpm test     # node --test (TZ=Asia/Seoul, TZ=UTC 양쪽)
 pnpm build    # 빌드 성공 확인
 ```
 
 `pnpm dev`만으로는 부족합니다. **dev에서 되고 build에서 깨지는 문제가 실제로 있었습니다**
-(경로 해석, Tailwind `@apply`). 커밋 전에 `pnpm build`를 돌리세요.
+(경로 해석, Tailwind `@apply`, 캘린더 시간대). 커밋 전에 `pnpm build`를 돌리세요.
 
 ---
 

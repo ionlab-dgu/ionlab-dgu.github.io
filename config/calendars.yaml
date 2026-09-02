@@ -1,6 +1,12 @@
 # Google Calendar 연동 설정.
 # 원칙: GCal이 primary(쓰기), 사이트는 read-only 표시만 합니다.
 #
+# ⚠️ 모든 캘린더는 internal 입니다. 공개 사이트에는 일정이 하나도 나가지 않습니다.
+#    Phase 1 에는 로그인이 없고 /internal/* 도 정적으로 빌드돼 공개 URL로 나가므로,
+#    "공개 페이지에만 안 쓰면 된다"가 성립하지 않습니다. 그래서 공개 배포 빌드
+#    (PUBLIC_ONLY=1)에서는 gcal.ts 가 아예 캘린더를 읽지 않습니다.
+#    Phase 2 에서 인증이 붙기 전까지 이 전제를 바꾸지 마세요.
+#
 # ical_url 얻는 법:
 #   GCal → 캘린더 설정 → "캘린더 통합" → 비공개 주소(iCal 형식) 또는 공개 주소
 #   - 공개 캘린더면 https://calendar.google.com/calendar/ical/<ID>/public/basic.ics
@@ -14,31 +20,71 @@ fetch:
   timeout_ms: 8000
   # fetch 실패해도 빌드는 성공해야 함 (empty state로 렌더)
   fail_on_error: false
+  # 반복 일정(RRULE)을 오늘부터 며칠치까지 펼칠지.
+  # /internal/calendar 가 60일치를 보여주므로 그보다 짧게 두면 일정이 조용히 사라집니다.
+  expand_days: 60
 
 calendars:
   - key: lab-general
     label: 랩 일정
     color: brand
     description: 그룹 미팅, 세미나, 랩 이벤트
-    gcal_id: 'TODO: xxxxx@group.calendar.google.com'
-    ical_url: '' # 공개 캘린더면 여기, 비공개면 아래 env_var
+    gcal_id: 17pq7lps4gj439lhc7rglashh8@group.calendar.google.com
+    # ⚠️ 여기에 주소를 **넣지 마세요.** Phase 1 에는 로그인이 없고 /internal/* 도
+    #    정적으로 빌드돼 공개 URL로 나갑니다. ical_url 을 채우면 랩 일정 제목이
+    #    https://ionlab-dgu.github.io/internal/calendar 에 그대로 실립니다.
+    #    (robots.txt 는 크롤러에게 부탁할 뿐, 접근을 막지 않습니다.)
+    #    아래 env_var 로 넘기면 로컬에서는 보이고 배포본에는 안 들어갑니다 —
+    #    deploy.yml 이 이 환경변수를 전달하지 않기 때문입니다.
+    ical_url: ''
     env_var: GCAL_ICAL_LAB_GENERAL
     visibility: internal # public | internal
+    default_visible_public: false
 
   - key: deadlines
     label: 데드라인
     color: red
     description: 과제 리포트·논문 투고 마감
+    # 추후 배정 예정 (2026-09-02 기준 미생성)
     gcal_id: 'TODO: xxxxx@group.calendar.google.com'
     ical_url: ''
     env_var: GCAL_ICAL_DEADLINES
     visibility: internal
+    default_visible_public: false
 
   - key: seminars
     label: 세미나
     color: blue
-    description: 초청 강연·리딩 그룹 (공개 가능)
+    # 예전에는 '공개 가능'으로 뒀지만, 공개 캘린더를 따로 두는 방식 자체를 접었습니다.
+    # 외부에 알릴 초청 강연은 content/seminars/ 나 news 로 씁니다 — 사람이 고른
+    # 내용만 나가는 편이 캘린더를 통째로 여는 것보다 안전합니다.
+    description: 초청 강연·리딩 그룹
     gcal_id: 'TODO: xxxxx@group.calendar.google.com'
     ical_url: ''
     env_var: GCAL_ICAL_SEMINARS
+    visibility: internal
+    default_visible_public: false
+
+# ─────────────────────────────────────────────────────────────
+# 외부 데이터 소스 (GCal이 아닌 곳에서 끌어오는 일정)
+#
+# GCal 캘린더와 달리 사람이 관리하지 않습니다. 워크플로가 주기적으로 받아와
+# src/data/ 아래 JSON으로 캐시하고, 사이트는 그 캐시만 읽습니다.
+# 빌드 시점에 네트워크를 타지 않으므로 upstream이 죽어도 빌드는 성공합니다.
+
+external_sources:
+  - key: conference-deadlines
+    label: 학회 데드라인
+    color: red
+    description: 관심 학회 투고 마감 (content/conferences.yaml 의 tracked_venues 만 필터링)
+    # 학회 마감은 공식 CFP에 이미 공개된 정보라 /calendar 에 표시합니다.
+    # GCal 캘린더가 아니라 커밋된 JSON 캐시에서 오므로 위의 internal 원칙과 무관합니다.
     visibility: public
+    # huggingface/ai-deadlines — venue별 YAML 파일.
+    # 원래 쓰던 paperswithcode/ai-deadlines 는 2024-09 이후 갱신이 멈춰
+    # 유지되고 있는 후속 저장소로 옮겼습니다.
+    source: aideadlines
+    base_url: https://raw.githubusercontent.com/huggingface/ai-deadlines/main/src/data/conferences
+    cache_path: src/data/conferences-fetched.json
+    # .github/workflows/sync-conferences.yml 의 cron 과 맞춰 두세요 (표기용).
+    sync_schedule: weekly

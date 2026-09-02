@@ -30,6 +30,12 @@ jobs:
       - name: 타입 검사
         run: pnpm check
 
+      # 캘린더 시간대·반복 일정 테스트. TZ=Asia/Seoul 과 TZ=UTC 양쪽에서 돕니다 —
+      # 잡으려는 버그가 "실행 환경 TZ에 따라 결과가 달라지는 것"이라 한쪽만으로는
+      # 회귀를 놓칩니다 (CI는 UTC, 개발자 노트북은 KST).
+      - name: 테스트
+        run: pnpm test
+
       # private 오버레이 없이도 빌드가 성공해야 합니다.
       # CI에는 .private/ 가 없으므로, 이 job 자체가 그 검증입니다.
       - name: 공개 빌드

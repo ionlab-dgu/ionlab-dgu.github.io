@@ -54,11 +54,12 @@ jobs:
 
       - uses: actions/configure-pages@v5
 
+      # 캘린더 환경변수를 넘기지 않습니다.
+      # 모든 캘린더가 internal 이고, PUBLIC_ONLY=1 에서는 gcal.ts 가 아예 읽지도
+      # 않습니다 (src/lib/gcal.ts 의 fetchAllEvents). 여기서 주소를 넘겨봐야
+      # 쓰이지 않으며, 넘기는 습관 자체가 다음 실수의 씨앗입니다.
       - name: 공개 빌드
         run: pnpm build:public
-        env:
-          # 공개 캘린더만 빌드에 포함합니다. 비공개 캘린더 주소는 여기에 넣지 마세요.
-          GCAL_ICAL_SEMINARS: ${{ secrets.GCAL_ICAL_SEMINARS }}
 
       # 아티팩트를 올리기 전에 검사합니다 — 통과하지 못하면 배포 대상 자체가 만들어지지 않습니다.
       - name: 격리 검사

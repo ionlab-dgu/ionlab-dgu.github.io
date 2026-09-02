@@ -203,15 +203,43 @@ pnpm link:private
 ### Google Calendar 연동
 
 1. GCal → 캘린더 설정 → **캘린더 통합**에서 iCal 주소를 복사합니다.
-2. 공개 캘린더면 `config/calendars.yaml`의 `ical_url`에 넣습니다.
-3. **비공개 캘린더면 주소를 파일에 넣지 말고** 환경변수로 넘깁니다:
+2. **주소는 `ical_url`이 아니라 환경변수로 넘깁니다.**
 
 ```bash
 # .env (커밋되지 않습니다)
 GCAL_ICAL_LAB_GENERAL=https://calendar.google.com/calendar/ical/.../basic.ics
 ```
 
+> ⚠️ **모든 캘린더는 `visibility: internal` 입니다. 공개 사이트에는 일정이 하나도
+> 나가지 않습니다.**
+>
+> Phase 1에는 로그인이 없고 `/internal/*`도 정적으로 빌드돼 공개 URL로 나갑니다.
+> 즉 "공개 페이지에만 안 쓰면 된다"가 성립하지 않습니다 — 실제로 `ical_url`을
+> 채웠더니 `dist/internal/calendar/index.html`에 미팅 제목이 그대로 실렸습니다.
+> `robots.txt`는 크롤러에게 부탁할 뿐 접근을 막지 않습니다.
+>
+> 그래서 공개 배포 빌드(`PUBLIC_ONLY=1`)에서는 `gcal.ts`가 **아예 캘린더를 읽지
+> 않습니다.** 규약이 아니라 코드로 막습니다.
+>
+> GCal 쪽에서 그 캘린더가 '공개'로 설정돼 있어도 마찬가지입니다. 주소를 아는
+> 사람만 보는 것과, 사이트에 실려 나가는 것은 다릅니다.
+
+랩 구성원이 일정을 보는 정식 경로는 **GCal 앱 구독**입니다
+(핸드북의 "캘린더 구독하기"). 사이트의 `/internal/calendar`는 보조 수단이고,
+Phase 2에서 인증이 붙기 전까지 배포본에서는 비어 있습니다.
+
 Google Calendar가 정본이고 사이트는 읽기만 합니다. 일정 추가·수정은 GCal에서 하세요.
+
+**반복 일정과 시간대는 자동으로 처리됩니다.**
+
+- 매주 반복(RRULE)은 실제 발생일마다 펼쳐집니다. 취소된 회차(EXDATE)는 빠지고,
+  시간이 바뀐 회차(RECURRENCE-ID)는 바뀐 시각으로 한 번만 나옵니다.
+- 펼치는 범위는 `fetch.expand_days`(기본 60일)입니다.
+- 시각은 `display_timezone`(기본 `Asia/Seoul`) 기준으로 표시됩니다.
+  `DTSTART;TZID=...` 든 UTC(`...Z`)든 같은 결과가 나오고, 빌드가 어느 시간대에서
+  돌아가는지에 좌우되지 않습니다.
+- 지원하지 않는 반복 규칙(`BYSETPOS` 등)을 만나면 그 일정은 펼치지 않고
+  원본 한 건만 보여줍니다. 틀린 날짜를 만들어내지 않기 위해서입니다.
 
 ---
 
@@ -271,6 +299,15 @@ Node 버전이 낮습니다. 22.12 이상으로 올리세요 (`node -v`).
 **캘린더가 비어 있습니다**
 `config/calendars.yaml`에 iCal 주소가 없거나 fetch가 실패한 것입니다.
 **이 경우에도 빌드는 성공합니다** — 의도된 동작입니다.
+
+**매주 반복하는 일정이 한 번만 보입니다**
+`fetch.expand_days`보다 뒤의 회차는 나오지 않습니다. 화면이 보여주는 범위보다
+크게 잡으세요 (`/internal/calendar`는 60일치를 봅니다).
+
+**일정 시각이 몇 시간씩 밀려 보입니다**
+`display_timezone`을 확인하세요. 코드에서 시각을 다룬다면
+`CalendarEvent`의 `day`/`time`을 쓰고 `start`(UTC)를 직접 잘라 쓰지 마세요 —
+자세한 내용은 CLAUDE.md의 "캘린더 시각"에 있습니다.
 
 **`.private/`를 연결했는데 내용이 안 보입니다**
 `.private/content/` 아래에 있어야 합니다 (`.private/` 바로 아래가 아닙니다).
