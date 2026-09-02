@@ -94,6 +94,24 @@ export function getFetchedConferences(): Conference[] {
   }
 }
 
+/**
+ * 캐시 파일의 상태. 화면이 "마감이 없다"와 "아직 한 번도 안 받아왔다"를
+ * 구분하기 위해 필요합니다 — 둘은 사용자가 할 일이 다릅니다.
+ */
+export function getFetchedMeta(): { exists: boolean; generatedAt?: string; count: number } {
+  try {
+    const raw = fs.readFileSync(path.join(SRC_DATA_DIR, FETCHED_JSON), 'utf-8');
+    const parsed = JSON.parse(raw) as FetchedConferences;
+    return {
+      exists: true,
+      generatedAt: parsed.generated_at,
+      count: parsed.venues?.length ?? 0,
+    };
+  } catch {
+    return { exists: false, count: 0 };
+  }
+}
+
 /** 병합 키. 같은 학회의 같은 회차를 가리키면 같은 키가 나와야 합니다. */
 function conferenceKey(c: Conference): string {
   return `${c.name.trim().toLowerCase()}-${c.year ?? ''}`;

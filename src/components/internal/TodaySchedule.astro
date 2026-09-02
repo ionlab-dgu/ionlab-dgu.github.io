@@ -3,13 +3,16 @@
  * 오늘 일정. Google Calendar가 정본이고 여기서는 읽기만 합니다.
  * 캘린더가 설정되지 않았거나 fetch가 실패하면 empty state를 보여줍니다.
  */
-import { fetchAllEvents, eventsOnDay, calendarMeta } from '../../lib/gcal';
+import { fetchAllEvents, eventsOnDay, calendarMeta, connectedCalendars } from '../../lib/gcal';
 import { dayKey } from '../../lib/attendance';
 import EmptyState from '../common/EmptyState.astro';
 
 const today = dayKey();
 const all = await fetchAllEvents();
 const events = eventsOnDay(all, today);
+
+// config 에 적힌 개수가 아니라 실제로 읽히는 캘린더 수 (internal/calendar 와 같은 기준).
+const connected = connectedCalendars().length;
 
 // 시각은 파싱 시점에 표시 시간대로 계산돼 e.time 에 들어 있습니다.
 // 여기서 new Date() 를 쓰면 빌드 환경(UTC)에서 시간이 밀립니다.
@@ -25,8 +28,12 @@ const events = eventsOnDay(all, today);
     {
       events.length === 0 ? (
         <EmptyState
-          title="오늘 등록된 일정이 없습니다"
-          hint="config/calendars.yaml 에 Google Calendar의 iCal 주소를 넣으면 여기에 표시됩니다."
+          title={connected === 0 ? '연결된 캘린더가 없습니다' : '오늘 등록된 일정이 없습니다'}
+          hint={
+            connected === 0
+              ? '배포본에서는 정상입니다. 랩 일정은 Google Calendar 앱에서 구독해 보세요.'
+              : undefined
+          }
           icon="◷"
         />
       ) : (

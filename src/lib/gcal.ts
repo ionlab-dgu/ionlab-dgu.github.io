@@ -36,7 +36,7 @@ export function expandDays(): number {
 }
 
 /** ical URL을 결정합니다: 설정의 ical_url > 환경변수(env_var). 없으면 undefined. */
-function resolveIcalUrl(cal: CalendarConfig): string | undefined {
+export function resolveIcalUrl(cal: CalendarConfig): string | undefined {
   const direct = filled(cal.ical_url);
   if (direct) return direct;
   if (cal.env_var) {
@@ -80,7 +80,7 @@ export async function fetchAllEvents(
 
   const configured = (calConfig.calendars ?? []).filter((cal) => {
     if (opts.visibility === 'public' && !isPublicSafe(cal)) return false;
-    return resolveIcalUrl(cal) !== undefined;
+    return hasIcalSource(cal);
   });
 
   if (configured.length === 0) return [];
@@ -137,6 +137,26 @@ export function upcomingEvents(
   const start = dayInZone(from.getTime(), zone);
   const until = dayInZone(from.getTime() + days * 86_400_000, zone);
   return events.filter((e) => e.day >= start && e.day <= until);
+}
+
+/** 이 캘린더에 실제로 읽을 주소가 붙어 있는가. */
+export function hasIcalSource(cal: CalendarConfig): boolean {
+  return resolveIcalUrl(cal) !== undefined;
+}
+
+/**
+ * 지금 빌드에서 **실제로 읽히는** 캘린더 목록.
+ *
+ * config/calendars.yaml 에 적힌 개수와 다릅니다. 적혀만 있고 주소가 없으면
+ * 아무것도 읽히지 않습니다. 화면의 empty state 가 "연결돼 있는데 일정이 없다"와
+ * "아예 연결이 안 됐다"를 구분하려면 이쪽을 세야 합니다.
+ *
+ * PUBLIC_ONLY 도 반영합니다 — 공개 배포 빌드에서는 fetchAllEvents 가 무조건
+ * 빈 배열이므로, 여기서 3개라고 답하면 화면이 또 다른 거짓말을 하게 됩니다.
+ */
+export function connectedCalendars(): CalendarConfig[] {
+  if (PUBLIC_ONLY) return [];
+  return (calConfig.calendars ?? []).filter(hasIcalSource);
 }
 
 /** 캘린더 key → 설정. 색상·라벨 표시에 씁니다. */
