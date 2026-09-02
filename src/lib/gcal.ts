@@ -12,6 +12,7 @@
  */
 import { calendars as calConfig, filled } from './config';
 import type { CalendarConfig } from './config';
+import { PUBLIC_ONLY } from './paths';
 import { DEFAULT_TIMEZONE, dayInZone, expandEvents, parseIcal } from './ical';
 import type { CalendarEvent } from './types';
 
@@ -46,7 +47,28 @@ function resolveIcalUrl(cal: CalendarConfig): string | undefined {
 }
 
 /**
+ * 이 캘린더를 공개 빌드 산출물에 실어도 되는가.
+ *
+ * 두 조건을 **모두** 만족해야 합니다. 하나는 실수로 뒤집힐 수 있어도
+ * 둘이 동시에 뒤집히기는 어렵게 하려는 것입니다.
+ */
+function isPublicSafe(cal: CalendarConfig): boolean {
+  return cal.visibility === 'public' && cal.default_visible_public === true;
+}
+
+/**
  * 설정된 모든 캘린더의 이벤트를 가져옵니다.
+ *
+ * ⚠️ PUBLIC_ONLY=1 (공개 배포 빌드)에서는 **어떤 캘린더도 읽지 않습니다.**
+ *
+ * 이게 이 파일에서 가장 중요한 줄입니다. Phase 1 에는 로그인이 없고
+ * /internal/* 페이지도 정적으로 빌드돼 공개 URL로 나갑니다. 즉 "공개 페이지에
+ * 안 쓰면 안전하다"가 성립하지 않습니다 — 실제로 ical_url 을 채웠더니
+ * dist/internal/calendar/index.html 과 dist/internal/index.html 에 일정 제목이
+ * 그대로 실렸습니다.
+ *
+ * 예전에는 deploy.yml 이 캘린더 환경변수를 안 넘긴다는 **규약**에만 기대고
+ * 있었습니다. 규약은 다음 사람이 깨뜨립니다. 여기서 코드로 막습니다.
  *
  * 실패해도 절대 throw하지 않습니다 (fail_on_error가 true가 아닌 한).
  * 캘린더가 하나도 설정되지 않았으면 빈 배열 — 페이지는 empty state를 렌더합니다.
@@ -54,8 +76,10 @@ function resolveIcalUrl(cal: CalendarConfig): string | undefined {
 export async function fetchAllEvents(
   opts: { visibility?: 'public' | 'internal' } = {},
 ): Promise<CalendarEvent[]> {
+  if (PUBLIC_ONLY) return [];
+
   const configured = (calConfig.calendars ?? []).filter((cal) => {
-    if (opts.visibility === 'public' && cal.visibility !== 'public') return false;
+    if (opts.visibility === 'public' && !isPublicSafe(cal)) return false;
     return resolveIcalUrl(cal) !== undefined;
   });
 

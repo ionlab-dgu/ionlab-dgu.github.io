@@ -7,14 +7,21 @@
  *
  * .github/workflows/weekly-summary.yml 이 주 1회(월 07:00 KST) 돌립니다.
  *
- * 담는 것:
- *   1. D-30 이내 학회 마감 (수동 목록 + 자동 수집 캐시를 합친 것)
- *   2. 앞으로 7일간의 랩 공식 일정 (GCal iCal)
+ * 담는 것: **D-30 이내 학회 마감뿐입니다.**
+ * (수동 목록 + 자동 수집 캐시를 합친 것)
  *
- * ── 과제(Grant) 마감을 넣지 않는 이유
- * Slack 채널의 구성원을 이 스크립트는 알 수 없습니다. 과제명·리포트 마감은
- * /internal/deadlines 에서 봅니다 (CLAUDE.md §1). 여기 넣으면 격리 경계가
- * "빌드에 포함하지 않는 것"에서 "채널 설정을 믿는 것"으로 내려앉습니다.
+ * ── 랩 일정과 과제 마감을 넣지 않는 이유
+ * Slack 채널의 구성원을 이 스크립트는 알 수 없습니다. alumni 나 외부 협력자가
+ * 초대돼 있을 수도 있습니다. 랩 일정에는 미팅 상대 이름이, 과제에는 리포트
+ * 마감과 과제명이 들어갑니다. 둘 다 /internal/ 에서 봅니다.
+ *
+ * 여기 넣으면 격리 경계가 "빌드에 포함하지 않는 것"에서 "채널 설정을 믿는 것"으로
+ * 내려앉습니다 (CLAUDE.md §1). 학회 마감은 공식 CFP에 이미 공개된 정보라
+ * 어느 채널에 올라가도 새는 것이 없습니다.
+ *
+ * 채널이 랩 내부 전용임이 확실해지면 랩 일정도 넣을 수 있습니다:
+ * INCLUDE_LAB_EVENTS=1 을 주고, 워크플로에 캘린더 env_var 시크릿을 추가하세요.
+ * 기본값은 넣지 않는 쪽입니다 — 모르면 안 보내는 게 맞습니다.
  *
  * ── Webhook이 없으면 그냥 성공합니다
  * 시크릿을 아직 안 넣었다고 워크플로가 매주 빨개지면 아무도 안 봅니다.
@@ -29,6 +36,8 @@ const IMMINENT_DAYS = 30;
 const EVENT_HORIZON_DAYS = 7;
 const TIMEOUT_MS = 15_000;
 const DRY_RUN = process.argv.includes('--dry-run');
+/** 채널이 랩 내부 전용임이 확실할 때만 켜세요. 기본은 꺼짐. */
+const INCLUDE_LAB_EVENTS = process.env.INCLUDE_LAB_EVENTS === '1';
 
 /** CORE_SCHEMA 로 파싱해 날짜를 문자열로 남깁니다 (src/lib/yaml.ts 와 같은 이유). */
 function parseYaml(source) {
@@ -178,6 +187,13 @@ async function fetchText(url) {
 }
 
 async function upcomingLabEvents(from) {
+  if (!INCLUDE_LAB_EVENTS) {
+    console.log(
+      `  ${dim('–')} ${dim('랩 일정은 요약에 넣지 않습니다 (INCLUDE_LAB_EVENTS=1 로 켤 수 있습니다)')}`,
+    );
+    return [];
+  }
+
   const config = readYaml(path.join(ROOT, 'config', 'calendars.yaml'));
   const calendars = (config.calendars ?? [])
     .map((cal) => ({ cal, url: resolveIcalUrl(cal) }))
@@ -253,14 +269,18 @@ function buildMessage(deadlines, events, from) {
     }
   }
 
-  lines.push('', `*앞으로 ${EVENT_HORIZON_DAYS}일 일정* (${events.length}건)`);
-  if (events.length === 0) {
-    lines.push('· 등록된 일정이 없습니다.');
-  } else {
-    for (const e of events) {
-      const where = e.location ? ` · ${e.location}` : '';
-      lines.push(`· ${eventTimeLabel(e)} — ${e.summary ?? '(제목 없음)'}${where}`);
+  if (INCLUDE_LAB_EVENTS) {
+    lines.push('', `*앞으로 ${EVENT_HORIZON_DAYS}일 일정* (${events.length}건)`);
+    if (events.length === 0) {
+      lines.push('· 등록된 일정이 없습니다.');
+    } else {
+      for (const e of events) {
+        const where = e.location ? ` · ${e.location}` : '';
+        lines.push(`· ${eventTimeLabel(e)} — ${e.summary ?? '(제목 없음)'}${where}`);
+      }
     }
+  } else {
+    lines.push('', '_랩 일정은 각자 Google Calendar에서 확인하세요._');
   }
 
   lines.push('', '_학회 마감은 공식 CFP가 정본입니다. 투고를 결정했다면 직접 확인하세요._');

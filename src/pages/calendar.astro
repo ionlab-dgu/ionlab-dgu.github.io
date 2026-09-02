@@ -1,11 +1,18 @@
 ---
 /**
- * 공개 캘린더 — 학회 마감과 공개 랩 일정.
+ * 공개 페이지 — 학회 투고 마감만 보여줍니다.
  *
- * ⚠️ 이 페이지는 공개입니다. 과제(Grant) 데드라인은 절대 여기 오면 안 됩니다.
+ * ⚠️ 여기에 **일정(캘린더 이벤트)을 넣지 마세요.**
+ *    랩 캘린더는 전부 internal 이고, Phase 1 에는 로그인이 없어 /internal/* 도
+ *    공개 URL로 나갑니다. 그래서 "공개 페이지에만 안 쓰면 된다"가 성립하지 않고,
+ *    공개 배포 빌드(PUBLIC_ONLY=1)에서는 gcal.ts 가 아예 캘린더를 읽지 않습니다.
+ *    랩 구성원은 /internal/calendar 에서 보고, 학생은 GCal 앱으로 직접 구독합니다.
+ *
+ * ⚠️ 과제(Grant) 마감도 여기 오면 안 됩니다.
  *    그래서 getDeadlines()가 아니라 getConferenceDeadlines()를 씁니다 —
  *    getGrants()를 아예 부르지 않는 함수입니다 (src/lib/deadlines.ts 참고).
- *    캘린더도 visibility: public 인 것만 가져옵니다.
+ *
+ * 학회 마감은 공식 CFP에 이미 공개된 정보이고, 커밋된 JSON 캐시에서 옵니다.
  */
 import PublicLayout from '../layouts/PublicLayout.astro';
 import PageHeader from '../components/common/PageHeader.astro';
@@ -17,23 +24,12 @@ import {
   ddayLabel,
   IMMINENT_DAYS,
 } from '../lib/deadlines';
-import { fetchAllEvents, upcomingEvents, calendarMeta } from '../lib/gcal';
 
 const display = getConferenceDisplay();
 
 const deadlines = getConferenceDeadlines({ includePast: !display.show_upcoming_only });
 const imminent = deadlines.filter((d) => d.daysLeft >= 0 && d.daysLeft <= IMMINENT_DAYS);
 const later = deadlines.filter((d) => d.daysLeft > IMMINENT_DAYS);
-
-// 공개 캘린더만. ical_url / env_var 가 비어 있으면 fetchAllEvents 가 빈 배열을 줍니다.
-const events = await fetchAllEvents({ visibility: 'public' });
-const nextEvents = upcomingEvents(events, 30).slice(0, 8);
-
-// day/time 은 파싱 시점에 표시 시간대로 계산된 값입니다 (src/lib/ical.ts).
-// 여기서 new Date() 를 쓰면 빌드 환경(UTC)에서 결과가 달라집니다.
-function eventDateLabel(e: { day: string; time?: string }): string {
-  return e.time ? `${e.day} ${e.time}` : e.day;
-}
 ---
 
 <PublicLayout title="Calendar" description="ION Lab이 주시하는 학회 마감과 공개 랩 일정">
@@ -110,36 +106,6 @@ function eventDateLabel(e: { day: string; time?: string }): string {
       }
     </section>
 
-    <section>
-      <h2 class="mb-3 font-semibold">Next lab events</h2>
-
-      {
-        nextEvents.length === 0 ? (
-          <EmptyState
-            title="공개된 예정 일정이 없습니다"
-            hint="공개 캘린더(config/calendars.yaml 의 visibility: public)에 ical_url 이 연결되면 여기에 나타납니다. 랩 구성원은 /internal/calendar 에서 전체 일정을 봅니다."
-            icon="◷"
-          />
-        ) : (
-          <ul class="divide-y divide-gray-200 dark:divide-gray-800">
-            {nextEvents.map((e) => (
-              <li class="flex items-baseline gap-4 py-2.5">
-                <time class="w-36 shrink-0 font-mono text-sm text-gray-500 tabular-nums dark:text-gray-400">
-                  {eventDateLabel(e)}
-                </time>
-                <div class="min-w-0">
-                  <p>{e.summary}</p>
-                  <p class="text-xs text-gray-500 dark:text-gray-400">
-                    {[calendarMeta(e.calendar)?.label, e.location].filter(Boolean).join(' · ')}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )
-      }
-    </section>
-
     <section
       class="border-t border-gray-200 pt-6 text-sm text-gray-500 dark:border-gray-800 dark:text-gray-400"
     >
@@ -150,8 +116,9 @@ function eventDateLabel(e: { day: string; time?: string }): string {
         투고를 결정했다면 반드시 학회 사이트에서 직접 확인하세요.
       </p>
       <p class="mt-2">
-        캘린더를 본인 Google Calendar에 구독하는 방법은
-        <a href="/handbook" class="link">핸드북</a>의 캘린더 구독하기 문서를 보세요.
+        랩 일정(그룹 미팅·세미나)은 이 페이지에 나오지 않습니다. 랩 구성원은 Google Calendar를
+        구독해서 보며, 방법은
+        <a href="/handbook" class="link">핸드북</a>의 캘린더 구독하기 문서에 있습니다.
       </p>
     </section>
   </div>

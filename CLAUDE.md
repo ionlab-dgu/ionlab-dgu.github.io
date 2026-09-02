@@ -191,6 +191,21 @@ iCal 파싱은 `src/lib/ical.ts`에 있습니다. `gcal.ts`는 가져오기·설
 - 이 동작은 `test/ical.test.ts`가 지킵니다. **`TZ=Asia/Seoul`과 `TZ=UTC` 양쪽에서**
   돌려야 의미가 있습니다 (`pnpm test`가 두 번 돌립니다).
 
+**캘린더 일정은 공개 빌드에 절대 들어가지 않습니다.**
+`PUBLIC_ONLY=1`이면 `fetchAllEvents()`가 무조건 빈 배열을 반환합니다
+(`src/lib/gcal.ts`). 이 줄을 지우거나 우회하지 마세요.
+
+이게 필요한 이유: Phase 1에는 로그인이 없고 `/internal/*`도 정적으로 빌드돼
+공개 URL로 나갑니다. 그래서 **"공개 페이지에만 안 쓰면 안전하다"가 성립하지
+않습니다.** 실제로 `ical_url`을 채웠더니 `dist/internal/calendar/index.html`과
+`dist/internal/index.html`에 미팅 제목("동경 미팅" 등)이 그대로 실렸습니다.
+
+`config/calendars.yaml`의 모든 캘린더는 `visibility: internal` +
+`default_visible_public: false`입니다. 공개 페이지에 일정을 내보내려면 두 값을
+모두 뒤집어야 하고(`gcal.ts`의 `isPublicSafe`), 그 위에 `PUBLIC_ONLY` 게이트가
+한 겹 더 있습니다. **일부러 세 겹입니다.** Phase 2에서 인증이 붙기 전까지
+이 전제를 바꾸지 마세요.
+
 ### 브랜드 색 (건드리기 전에 읽으세요)
 
 브랜드 골드 `#f1c232`는 **흰 배경 대비가 1.68:1**이라 본문·링크 텍스트로 쓸 수 없습니다

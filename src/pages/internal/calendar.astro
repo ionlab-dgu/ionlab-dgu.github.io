@@ -2,9 +2,11 @@
 import InternalLayout from '../../layouts/InternalLayout.astro';
 import PageHeader from '../../components/common/PageHeader.astro';
 import EmptyState from '../../components/common/EmptyState.astro';
+import DeadlineList from '../../components/internal/DeadlineList.astro';
 import { fetchAllEvents, upcomingEvents, calendarMeta } from '../../lib/gcal';
 import { calendars } from '../../lib/config';
 import { dayKey } from '../../lib/attendance';
+import { getConferenceDeadlines } from '../../lib/deadlines';
 
 const events = await fetchAllEvents();
 const today = dayKey();
@@ -22,6 +24,10 @@ for (const e of upcoming) {
 const days = [...byDay.entries()];
 
 const configured = (calendars.calendars ?? []).length;
+
+// 학회 마감도 같은 화면에서 봅니다. 과제 마감은 /internal/deadlines 에 있습니다 —
+// 여기서는 '일정'만 다루고 과제 리포트는 성격이 달라 섞지 않습니다.
+const deadlines = getConferenceDeadlines({ withinDays: 60 });
 
 function dayLabel(d: string): string {
   const date = new Date(`${d}T00:00:00+09:00`);
@@ -44,7 +50,7 @@ function dayLabel(d: string): string {
         }
         hint={
           configured === 0
-            ? 'config/calendars.yaml 의 ical_url 을 채우거나, 비공개 캘린더면 env_var 에 지정한 환경변수로 iCal 주소를 넘기세요.'
+            ? '모든 캘린더는 internal 이라 iCal 주소를 env_var 로 넘겨야 합니다 (config/calendars.yaml 참고). ical_url 에 직접 넣으면 공개 배포본에 실릴 수 있습니다.'
             : '캘린더는 연결되어 있지만 표시할 일정이 없습니다. GCal에 일정을 추가하면 다음 빌드부터 나타납니다.'
         }
         icon="◷"
@@ -83,6 +89,20 @@ function dayLabel(d: string): string {
       </div>
     )
   }
+
+  <section class="mt-12 border-t border-gray-200 pt-6 dark:border-gray-800">
+    <h2 class="mb-3 font-semibold">
+      학회 마감
+      <span class="text-sm font-normal text-gray-500 dark:text-gray-400"> 앞으로 60일 </span>
+    </h2>
+    <DeadlineList
+      deadlines={deadlines}
+      emptyHint="content/conferences.yaml 의 tracked_venues 에 관심 학회를 추가하세요. 날짜는 주 1회 자동으로 갱신됩니다."
+    />
+    <p class="mt-3 text-sm text-gray-500 dark:text-gray-400">
+      과제 리포트 마감은 <a href="/internal/deadlines" class="link">데드라인</a> 에 있습니다.
+    </p>
+  </section>
 
   {
     configured > 0 && (

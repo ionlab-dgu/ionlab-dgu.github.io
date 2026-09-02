@@ -93,6 +93,14 @@ export interface CalendarConfig {
   ical_url?: string;
   env_var?: string;
   visibility?: 'public' | 'internal';
+  /**
+   * 공개 사이트 산출물에 실어도 되는가. 기본은 안 됨(undefined = false).
+   *
+   * visibility 와 중복처럼 보이지만 일부러 둘로 나눴습니다. visibility 는
+   * "사이트 어느 화면에 보여줄까"이고, 이 값은 "공개 배포본에 실려도 되는가"입니다.
+   * 한쪽을 실수로 바꿔도 다른 쪽이 남습니다 (gcal.ts 의 isPublicSafe).
+   */
+  default_visible_public?: boolean;
 }
 
 /**

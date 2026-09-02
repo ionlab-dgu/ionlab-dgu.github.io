@@ -1,6 +1,12 @@
 # Google Calendar 연동 설정.
 # 원칙: GCal이 primary(쓰기), 사이트는 read-only 표시만 합니다.
 #
+# ⚠️ 모든 캘린더는 internal 입니다. 공개 사이트에는 일정이 하나도 나가지 않습니다.
+#    Phase 1 에는 로그인이 없고 /internal/* 도 정적으로 빌드돼 공개 URL로 나가므로,
+#    "공개 페이지에만 안 쓰면 된다"가 성립하지 않습니다. 그래서 공개 배포 빌드
+#    (PUBLIC_ONLY=1)에서는 gcal.ts 가 아예 캘린더를 읽지 않습니다.
+#    Phase 2 에서 인증이 붙기 전까지 이 전제를 바꾸지 마세요.
+#
 # ical_url 얻는 법:
 #   GCal → 캘린더 설정 → "캘린더 통합" → 비공개 주소(iCal 형식) 또는 공개 주소
 #   - 공개 캘린더면 https://calendar.google.com/calendar/ical/<ID>/public/basic.ics
@@ -33,6 +39,7 @@ calendars:
     ical_url: ''
     env_var: GCAL_ICAL_LAB_GENERAL
     visibility: internal # public | internal
+    default_visible_public: false
 
   - key: deadlines
     label: 데드라인
@@ -43,15 +50,20 @@ calendars:
     ical_url: ''
     env_var: GCAL_ICAL_DEADLINES
     visibility: internal
+    default_visible_public: false
 
   - key: seminars
     label: 세미나
     color: blue
-    description: 초청 강연·리딩 그룹 (공개 가능)
+    # 예전에는 '공개 가능'으로 뒀지만, 공개 캘린더를 따로 두는 방식 자체를 접었습니다.
+    # 외부에 알릴 초청 강연은 content/seminars/ 나 news 로 씁니다 — 사람이 고른
+    # 내용만 나가는 편이 캘린더를 통째로 여는 것보다 안전합니다.
+    description: 초청 강연·리딩 그룹
     gcal_id: 'TODO: xxxxx@group.calendar.google.com'
     ical_url: ''
     env_var: GCAL_ICAL_SEMINARS
-    visibility: public
+    visibility: internal
+    default_visible_public: false
 
 # ─────────────────────────────────────────────────────────────
 # 외부 데이터 소스 (GCal이 아닌 곳에서 끌어오는 일정)
@@ -65,6 +77,8 @@ external_sources:
     label: 학회 데드라인
     color: red
     description: 관심 학회 투고 마감 (content/conferences.yaml 의 tracked_venues 만 필터링)
+    # 학회 마감은 공식 CFP에 이미 공개된 정보라 /calendar 에 표시합니다.
+    # GCal 캘린더가 아니라 커밋된 JSON 캐시에서 오므로 위의 internal 원칙과 무관합니다.
     visibility: public
     # huggingface/ai-deadlines — venue별 YAML 파일.
     # 원래 쓰던 paperswithcode/ai-deadlines 는 2024-09 이후 갱신이 멈춰
