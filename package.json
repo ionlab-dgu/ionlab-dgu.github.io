@@ -29,7 +29,8 @@
     "new:publication": "node scripts/new-publication.mjs",
     "sync:conferences": "node scripts/fetch-conferences.mjs",
     "summary:weekly": "node scripts/weekly-slack-summary.mjs",
-    "astro": "astro"
+    "astro": "astro",
+    "test": "TZ=Asia/Seoul node --test 'test/**/*.test.ts' && TZ=UTC node --test 'test/**/*.test.ts'"
   },
   "dependencies": {
     "astro": "^7.1.3",

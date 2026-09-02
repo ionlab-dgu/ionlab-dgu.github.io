@@ -213,6 +213,17 @@ GCAL_ICAL_LAB_GENERAL=https://calendar.google.com/calendar/ical/.../basic.ics
 
 Google Calendar가 정본이고 사이트는 읽기만 합니다. 일정 추가·수정은 GCal에서 하세요.
 
+**반복 일정과 시간대는 자동으로 처리됩니다.**
+
+- 매주 반복(RRULE)은 실제 발생일마다 펼쳐집니다. 취소된 회차(EXDATE)는 빠지고,
+  시간이 바뀐 회차(RECURRENCE-ID)는 바뀐 시각으로 한 번만 나옵니다.
+- 펼치는 범위는 `fetch.expand_days`(기본 60일)입니다.
+- 시각은 `display_timezone`(기본 `Asia/Seoul`) 기준으로 표시됩니다.
+  `DTSTART;TZID=...` 든 UTC(`...Z`)든 같은 결과가 나오고, 빌드가 어느 시간대에서
+  돌아가는지에 좌우되지 않습니다.
+- 지원하지 않는 반복 규칙(`BYSETPOS` 등)을 만나면 그 일정은 펼치지 않고
+  원본 한 건만 보여줍니다. 틀린 날짜를 만들어내지 않기 위해서입니다.
+
 ---
 
 ## 배포
@@ -271,6 +282,15 @@ Node 버전이 낮습니다. 22.12 이상으로 올리세요 (`node -v`).
 **캘린더가 비어 있습니다**
 `config/calendars.yaml`에 iCal 주소가 없거나 fetch가 실패한 것입니다.
 **이 경우에도 빌드는 성공합니다** — 의도된 동작입니다.
+
+**매주 반복하는 일정이 한 번만 보입니다**
+`fetch.expand_days`보다 뒤의 회차는 나오지 않습니다. 화면이 보여주는 범위보다
+크게 잡으세요 (`/internal/calendar`는 60일치를 봅니다).
+
+**일정 시각이 몇 시간씩 밀려 보입니다**
+`display_timezone`을 확인하세요. 코드에서 시각을 다룬다면
+`CalendarEvent`의 `day`/`time`을 쓰고 `start`(UTC)를 직접 잘라 쓰지 마세요 —
+자세한 내용은 CLAUDE.md의 "캘린더 시각"에 있습니다.
 
 **`.private/`를 연결했는데 내용이 안 보입니다**
 `.private/content/` 아래에 있어야 합니다 (`.private/` 바로 아래가 아닙니다).
