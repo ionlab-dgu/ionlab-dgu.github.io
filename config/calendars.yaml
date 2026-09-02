@@ -20,7 +20,7 @@ calendars:
     label: 랩 일정
     color: brand
     description: 그룹 미팅, 세미나, 랩 이벤트
-    gcal_id: 'TODO: xxxxx@group.calendar.google.com'
+    gcal_id: 17pq7lps4gj439lhc7rglashh8@group.calendar.google.com
     ical_url: '' # 공개 캘린더면 여기, 비공개면 아래 env_var
     env_var: GCAL_ICAL_LAB_GENERAL
     visibility: internal # public | internal
@@ -29,6 +29,7 @@ calendars:
     label: 데드라인
     color: red
     description: 과제 리포트·논문 투고 마감
+    # 추후 배정 예정 (2026-09-02 기준 미생성)
     gcal_id: 'TODO: xxxxx@group.calendar.google.com'
     ical_url: ''
     env_var: GCAL_ICAL_DEADLINES
