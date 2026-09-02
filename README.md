@@ -203,13 +203,26 @@ pnpm link:private
 ### Google Calendar 연동
 
 1. GCal → 캘린더 설정 → **캘린더 통합**에서 iCal 주소를 복사합니다.
-2. 공개 캘린더면 `config/calendars.yaml`의 `ical_url`에 넣습니다.
-3. **비공개 캘린더면 주소를 파일에 넣지 말고** 환경변수로 넘깁니다:
+2. 주소를 어디에 넣을지는 **그 캘린더의 `visibility`** 가 정합니다:
+
+| `visibility` | 넣는 곳    | 결과                                           |
+| ------------ | ---------- | ---------------------------------------------- |
+| `public`     | `ical_url` | 공개 사이트(`/calendar`)에 일정이 표시됩니다   |
+| `internal`   | `env_var`  | 로컬에서만 보이고 배포본에는 들어가지 않습니다 |
 
 ```bash
 # .env (커밋되지 않습니다)
 GCAL_ICAL_LAB_GENERAL=https://calendar.google.com/calendar/ical/.../basic.ics
 ```
+
+> ⚠️ **`visibility: internal` 인 캘린더의 주소를 `ical_url`에 넣지 마세요.**
+> Phase 1에는 로그인이 없고 `/internal/*`도 정적으로 빌드돼 공개 URL로 나갑니다.
+> `ical_url`을 채우면 랩 일정 제목이 `https://ionlab-dgu.github.io/internal/calendar`에
+> 그대로 실립니다. `robots.txt`는 크롤러에게 부탁할 뿐 접근을 막지 않습니다.
+>
+> `env_var`로 넘기면 안전합니다 — 배포 워크플로가 그 환경변수를 전달하지 않으므로
+> 배포본은 빈 캘린더가 됩니다. GCal 캘린더가 Google 쪽에서 '공개'로 설정돼 있어도
+> 마찬가지입니다. 주소를 아는 사람만 보는 것과, 사이트에 실려 나가는 것은 다릅니다.
 
 Google Calendar가 정본이고 사이트는 읽기만 합니다. 일정 추가·수정은 GCal에서 하세요.
 
