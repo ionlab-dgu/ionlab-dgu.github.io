@@ -7,21 +7,24 @@
  *
  * .github/workflows/weekly-summary.yml 이 주 1회(월 07:00 KST) 돌립니다.
  *
- * 담는 것: **D-30 이내 학회 마감뿐입니다.**
- * (수동 목록 + 자동 수집 캐시를 합친 것)
+ * 담는 것:
+ *   1. 앞으로 7일간의 랩 일정 (제목·날짜·시각)
+ *   2. D-30 이내 학회 마감 (수동 목록 + 자동 수집 캐시를 합친 것)
  *
- * ── 랩 일정과 과제 마감을 넣지 않는 이유
- * Slack 채널의 구성원을 이 스크립트는 알 수 없습니다. alumni 나 외부 협력자가
- * 초대돼 있을 수도 있습니다. 랩 일정에는 미팅 상대 이름이, 과제에는 리포트
- * 마감과 과제명이 들어갑니다. 둘 다 /internal/ 에서 봅니다.
+ * ── ⚠️ 이 스크립트가 기대고 있는 전제
+ * **SLACK_WEBHOOK_URL 이 가리키는 채널은 랩 내부 전용(학생 + PI)입니다.**
+ * 랩 일정 제목에는 미팅 상대 이름이 그대로 들어갑니다. 그 전제 위에서
+ * 필터링·마스킹 없이 보냅니다.
  *
- * 여기 넣으면 격리 경계가 "빌드에 포함하지 않는 것"에서 "채널 설정을 믿는 것"으로
- * 내려앉습니다 (CLAUDE.md §1). 학회 마감은 공식 CFP에 이미 공개된 정보라
- * 어느 채널에 올라가도 새는 것이 없습니다.
+ * 이 전제는 코드에서 확인할 수 없습니다. Webhook 을 alumni·외부 협력자가
+ * 있는 채널로 옮긴다면 **여기부터 다시 보세요** — 그 순간 격리 경계가
+ * "빌드에 포함하지 않는 것"에서 "채널 설정을 믿는 것"으로 내려앉습니다
+ * (CLAUDE.md §1). 그 경우 랩 일정을 빼고 학회 마감만 보내면 됩니다
+ * (학회 마감은 공식 CFP에 이미 공개된 정보라 어느 채널에 올라가도 안전합니다).
  *
- * 채널이 랩 내부 전용임이 확실해지면 랩 일정도 넣을 수 있습니다:
- * INCLUDE_LAB_EVENTS=1 을 주고, 워크플로에 캘린더 env_var 시크릿을 추가하세요.
- * 기본값은 넣지 않는 쪽입니다 — 모르면 안 보내는 게 맞습니다.
+ * ── 과제(Grant) 마감은 여전히 넣지 않습니다
+ * 리포트 마감·예산 일정은 성격이 달라 /internal/deadlines 에서 봅니다.
+ * 채널이 내부 전용이어도 굳이 흘려보낼 이유가 없습니다.
  *
  * ── Webhook이 없으면 그냥 성공합니다
  * 시크릿을 아직 안 넣었다고 워크플로가 매주 빨개지면 아무도 안 봅니다.
@@ -31,13 +34,16 @@ import fs from 'node:fs';
 import path from 'node:path';
 import yaml from 'js-yaml';
 import { ROOT, CONTENT, green, red, yellow, dim, bold } from './_lib.mjs';
+// 사이트와 **같은 파서**를 씁니다. 예전에는 여기 미니 파서를 따로 두고 있었는데,
+// 그 사본은 TZID 를 무시하고(UTC 러너에서 9시간 밀림) RRULE 도 전개하지 않아
+// 매주 반복하는 세미나·그룹 미팅이 요약에서 통째로 빠졌습니다.
+// ical.ts 는 `import type` 밖에 안 써서 .mjs 에서 그대로 import 됩니다.
+import { parseIcal, expandEvents, DEFAULT_TIMEZONE } from '../src/lib/ical.ts';
 
 const IMMINENT_DAYS = 30;
 const EVENT_HORIZON_DAYS = 7;
 const TIMEOUT_MS = 15_000;
 const DRY_RUN = process.argv.includes('--dry-run');
-/** 채널이 랩 내부 전용임이 확실할 때만 켜세요. 기본은 꺼짐. */
-const INCLUDE_LAB_EVENTS = process.env.INCLUDE_LAB_EVENTS === '1';
 
 /** CORE_SCHEMA 로 파싱해 날짜를 문자열로 남깁니다 (src/lib/yaml.ts 와 같은 이유). */
 function parseYaml(source) {
@@ -125,55 +131,6 @@ function resolveIcalUrl(cal) {
   return undefined;
 }
 
-/**
- * VEVENT에서 SUMMARY/DTSTART만 뽑는 최소 파서.
- *
- * src/lib/gcal.ts 의 parseIcal 과 같은 일을 합니다. 그쪽은 TypeScript라
- * .mjs 스크립트에서 import할 수 없어 꼭 필요한 두 필드만 다시 구현했습니다.
- * 반복 일정(RRULE)은 전개하지 않습니다 — gcal.ts 도 마찬가지입니다.
- */
-function parseIcal(text) {
-  const unfolded = text.replace(/\r\n[ \t]/g, '').replace(/\n[ \t]/g, '');
-  const events = [];
-  let current = null;
-
-  for (const line of unfolded.split(/\r?\n/)) {
-    if (line.startsWith('BEGIN:VEVENT')) {
-      current = {};
-      continue;
-    }
-    if (line.startsWith('END:VEVENT')) {
-      if (current?.start) events.push(current);
-      current = null;
-      continue;
-    }
-    if (!current) continue;
-
-    const sep = line.indexOf(':');
-    if (sep < 0) continue;
-    const key = line.slice(0, sep).split(';')[0].toUpperCase();
-    const value = line.slice(sep + 1);
-
-    if (key === 'SUMMARY') {
-      current.summary = value.replace(/\\n/g, ' ').replace(/\\([,;\\])/g, '$1');
-    } else if (key === 'LOCATION') {
-      current.location = value.replace(/\\([,;\\])/g, '$1');
-    } else if (key === 'DTSTART') {
-      const dateOnly = /^(\d{4})(\d{2})(\d{2})$/.exec(value.trim());
-      const dateTime = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(Z?)$/.exec(value.trim());
-      if (dateOnly) {
-        current.start = `${dateOnly[1]}-${dateOnly[2]}-${dateOnly[3]}`;
-        current.allDay = true;
-      } else if (dateTime) {
-        const [, y, mo, d, h, mi, s, z] = dateTime;
-        current.start = `${y}-${mo}-${d}T${h}:${mi}:${s}${z ? 'Z' : ''}`;
-        current.allDay = false;
-      }
-    }
-  }
-  return events;
-}
-
 async function fetchText(url) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -187,40 +144,32 @@ async function fetchText(url) {
 }
 
 async function upcomingLabEvents(from) {
-  if (!INCLUDE_LAB_EVENTS) {
-    console.log(
-      `  ${dim('–')} ${dim('랩 일정은 요약에 넣지 않습니다 (INCLUDE_LAB_EVENTS=1 로 켤 수 있습니다)')}`,
-    );
-    return [];
-  }
-
   const config = readYaml(path.join(ROOT, 'config', 'calendars.yaml'));
+  const zone = config.display_timezone || DEFAULT_TIMEZONE;
+
   const calendars = (config.calendars ?? [])
     .map((cal) => ({ cal, url: resolveIcalUrl(cal) }))
     .filter((c) => c.url);
 
   if (calendars.length === 0) {
     console.log(
-      `  ${dim('–')} ${dim('연결된 캘린더 없음 (gcal_id 가 아직 TODO 이거나 ical 주소가 비어 있습니다)')}`,
+      `  ${dim('–')} ${dim('연결된 캘린더 없음 — 워크플로에 GCAL_ICAL_LAB_GENERAL 시크릿을 넣으세요')}`,
     );
     return [];
   }
 
-  const start = from.toISOString().slice(0, 10);
-  const until = new Date(from.getTime() + EVENT_HORIZON_DAYS * 86_400_000)
-    .toISOString()
-    .slice(0, 10);
-
   const all = [];
   for (const { cal, url } of calendars) {
     try {
-      const events = parseIcal(await fetchText(url));
-      const inRange = events.filter((e) => {
-        const d = e.start.slice(0, 10);
-        return d >= start && d <= until;
+      // 사이트와 같은 경로: 파싱 → 반복 전개(EXDATE·RECURRENCE-ID 포함).
+      // 이 전개가 없으면 매주 반복하는 세미나·그룹 미팅이 요약에서 통째로 빠집니다.
+      const events = expandEvents(parseIcal(await fetchText(url), cal.key, { timezone: zone }), {
+        from,
+        days: EVENT_HORIZON_DAYS,
+        timezone: zone,
       });
-      for (const e of inRange) all.push({ ...e, calendar: cal.label ?? cal.key });
-      console.log(`  ${green('✓')} ${cal.label ?? cal.key} ${dim(`${inRange.length}건`)}`);
+      for (const e of events) all.push({ ...e, calendar: cal.label ?? cal.key });
+      console.log(`  ${green('✓')} ${cal.label ?? cal.key} ${dim(`${events.length}건`)}`);
     } catch (err) {
       // 캘린더 하나가 안 열려도 요약 전체를 포기하지는 않습니다.
       console.log(`  ${yellow('!')} ${cal.label ?? cal.key} ${dim(String(err.message ?? err))}`);
@@ -231,22 +180,17 @@ async function upcomingLabEvents(from) {
 
 // ─── 3. 본문 ────────────────────────────────────────────────
 
+const WEEKDAY_KO = ['일', '월', '화', '수', '목', '금', '토'];
+
 function eventTimeLabel(e) {
-  if (e.allDay) return `${e.start.slice(0, 10)} 종일`;
-  const d = new Date(e.start);
-  if (Number.isNaN(d.getTime())) return e.start.slice(0, 10);
-  const day = d.toLocaleDateString('ko-KR', {
-    month: 'numeric',
-    day: 'numeric',
-    weekday: 'short',
-    timeZone: 'Asia/Seoul',
-  });
-  const time = d.toLocaleTimeString('ko-KR', {
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'Asia/Seoul',
-  });
-  return `${day} ${time}`;
+  // day/time 은 ical.ts 가 표시 시간대로 미리 계산해 둔 값입니다.
+  // 여기서 new Date(e.start) 를 쓰면 UTC 러너에서 시각이 밀립니다.
+  // 요일은 날짜 문자열에서 직접 뽑습니다 — 로케일 포맷터를 태우면
+  // "9. 2. (수)" 처럼 어색해지고 실행 환경 로케일에도 좌우됩니다.
+  const [y, m, d] = e.day.split('-').map(Number);
+  const weekday = WEEKDAY_KO[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+  const date = `${m}/${d}(${weekday})`;
+  return e.time ? `${date} ${e.time}` : `${date} 종일`;
 }
 
 function buildMessage(deadlines, events, from) {
@@ -259,7 +203,17 @@ function buildMessage(deadlines, events, from) {
 
   const lines = [`*이번 주 랩 요약* — ${week}`, ''];
 
-  lines.push(`*마감 D-${IMMINENT_DAYS} 이내* (${deadlines.length}건)`);
+  lines.push(`*앞으로 ${EVENT_HORIZON_DAYS}일 일정* (${events.length}건)`);
+  if (events.length === 0) {
+    lines.push('· 등록된 일정이 없습니다.');
+  } else {
+    for (const e of events) {
+      const where = e.location ? ` · ${e.location}` : '';
+      lines.push(`· ${eventTimeLabel(e)} — ${e.summary ?? '(제목 없음)'}${where}`);
+    }
+  }
+
+  lines.push('', `*마감 D-${IMMINENT_DAYS} 이내* (${deadlines.length}건)`);
   if (deadlines.length === 0) {
     lines.push('· 임박한 학회 마감이 없습니다.');
   } else {
@@ -267,20 +221,6 @@ function buildMessage(deadlines, events, from) {
       const name = d.url ? `<${d.url}|${d.label}>` : d.label;
       lines.push(`· \`${ddayLabel(d.daysLeft)}\` ${name} ${d.what} 마감 — ${d.due}`);
     }
-  }
-
-  if (INCLUDE_LAB_EVENTS) {
-    lines.push('', `*앞으로 ${EVENT_HORIZON_DAYS}일 일정* (${events.length}건)`);
-    if (events.length === 0) {
-      lines.push('· 등록된 일정이 없습니다.');
-    } else {
-      for (const e of events) {
-        const where = e.location ? ` · ${e.location}` : '';
-        lines.push(`· ${eventTimeLabel(e)} — ${e.summary ?? '(제목 없음)'}${where}`);
-      }
-    }
-  } else {
-    lines.push('', '_랩 일정은 각자 Google Calendar에서 확인하세요._');
   }
 
   lines.push('', '_학회 마감은 공식 CFP가 정본입니다. 투고를 결정했다면 직접 확인하세요._');
