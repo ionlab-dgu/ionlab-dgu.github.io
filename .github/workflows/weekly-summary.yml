@@ -14,8 +14,15 @@ name: Weekly summary
 
 on:
   schedule:
-    # 일 22:00 UTC = 월 07:00 KST. 출근 전에 도착합니다.
-    - cron: '0 22 * * 0'
+    # 주 2회, 둘 다 오전 9시대 KST (UTC+9, 한국은 DST 없음).
+    #
+    # 월 00:15 UTC = 월 09:15 KST — 한 주 시작. Sync(월 09:00 KST) 뒤 15분 버퍼를
+    #   두어 갱신된 학회 캐시를 보게 합니다. 다만 GitHub 예약 지연 때문에 순서가
+    #   보장되지는 않습니다 — sync-conferences.yml 의 주석 참고.
+    - cron: '15 0 * * 1'
+    # 수 00:00 UTC = 수 09:00 KST — 주 중간 리마인더.
+    #   학회 캐시는 월요일 것을 그대로 씁니다 (수요일에는 Sync 를 돌리지 않습니다).
+    - cron: '0 0 * * 3'
   workflow_dispatch:
 
 permissions:
