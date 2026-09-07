@@ -3,7 +3,7 @@
 랩 관리 시스템 `lab-os` 아키텍처·결정사항·현황 정리 문서.
 새 Claude 세션에서 컨텍스트 로딩용, 학생 온보딩용, 결정 기록용.
 
-Last updated: 2026-08 (세션 2 결정 반영)
+Last updated: 2026-09 (v3.1 — cron 오프셋 조정 반영)
 
 ---
 
@@ -349,16 +349,46 @@ content/lab-seminars/
 
 ---
 
-## 15. 캘린더 & 컨퍼런스 데드라인
+## 15. 캘린더 & 컨퍼런스 데드라인 (구축 완료)
 
-### 캘린더
-- **Google Calendar가 primary**, 사이트는 read-only 표시
-- `config/calendars.yaml`에 GCal ID 목록
+### 접근 정책
+- 모든 랩 캘린더 = **internal only** (Phase 2 인증 후 실제 접근 제한)
+- 배포된 public 사이트에는 lab 이벤트 노출 zero (6개 페이지 검증 완료)
+- 학생·PI는 GCal 앱에서 직접 subscribe해서 확인
+- 로컬 dev에서만 사이트에서 이벤트 확인 가능 (`.env`로 iCal URL 주입)
+
+### 구조
+- **Google Calendar가 primary** (편집), 사이트는 read-only
+- `config/calendars.yaml`: 캘린더 정의 (lab_official, 향후 확장 가능)
+- 로컬 dev: `.env`의 `GCAL_ICAL_LAB_GENERAL`로 이벤트 확인
+- Slack Weekly Summary: 별도 fetch 경로 (GitHub Secret `GCAL_ICAL_LAB_GENERAL`)
+  - Public 사이트 빌드와 완전 격리
 
 ### 컨퍼런스 데드라인
-- `content/conferences.yaml`에 관심 venue subset 관리
-- 대시보드에 D-30 이내 강조
-- Phase 3에서 Slack 알림 (D-14, D-7, D-3)
+- `content/conferences.yaml`에 관심 venue 16개 관리:
+  - Tier 1 General ML: NeurIPS, ICML, ICLR
+  - AI General: AAAI, IJCAI
+  - Vision: CVPR, ECCV, ICCV
+  - NLP: ACL, EMNLP, NAACL
+  - Theory/Stats: AISTATS, UAI
+  - Data Mining: KDD, WSDM, ICDM
+- aideadlines에서 자동 sync
+- 사이트에 D-30 이내 강조
+
+### 자동화 (라이브)
+- **Sync Conference Deadlines**: 매주 월 09:23 KST 자동 실행
+- **Weekly Summary (Slack)**: 매주 월 09:37 KST + 수 09:23 KST 자동 발송
+  - 랩 이벤트 (GCAL_ICAL_LAB_GENERAL) + 컨퍼런스 데드라인 포함
+  - 랩 내부 채널로만 발송
+- 두 workflow 모두 `workflow_dispatch`로 수동 실행 지원
+- **⚠️ Cron 오프셋 주의**: 정각(:00) 및 흔한 분(:15, :30)은 GitHub 부하 관리로 
+  skip 리스크. 비관행 분(:23, :37 등) 사용 관례.
+
+### 안전장치
+- Public 사이트 빌드: `PUBLIC_ONLY=1` 게이트 → lab 데이터 로드 자체 X
+- Slack fetch 경로: 사이트 빌드와 완전 격리 (secret은 workflow에서만 참조)
+- gcal.ts: TZID 오프셋 정확 처리 + RRULE 전개 지원 (60일 window)
+- UI 문구: "연결 안 됨"과 "일정 없음" 구분해서 오해 방지
 
 ---
 
@@ -412,54 +442,90 @@ Claude Project 공유는 Team/Enterprise 플랜에서만 가능. 검토 중인 �
 
 ## 19. 현재 상태 (완료)
 
+**기반 구축**
 - [x] 아키텍처 결정
 - [x] GitHub org (`ionlab-dgu`) + 두 repo 생성
 - [x] Astro scaffold, 콘텐츠 폴더 구조
 - [x] GitHub Pages 배포 (native Actions)
 - [x] Private 격리 3층 방어
 - [x] 사이트 라이브: https://ionlab-dgu.github.io/
-- [x] Handbook policies 3개 문서화 (graduation, operations, authorship — draft)
+
+**문서화**
+- [x] Handbook policies 3개 (graduation, operations, authorship — draft)
+- [x] research-plan-guide.md 작성
+- [x] calendar-setup.md 작성 (TODO 채우기만 남음)
+
+**미팅 프랙티스**
+- [x] 미팅 프랙티스 결정 (랩 세미나 수 15:00, 연구 1:1 매주, Personal 1-on-1 월 1회)
+- [x] Handbook operations.md의 §1 랩 세미나 개편 반영
+
+**인프라**
+- [x] Research Plan 인프라 (lab-os-private/research-plans/)
+- [x] Lab Seminar 인프라 (content/lab-seminars/ + rotation YAML)
+- [x] 캘린더 인프라 (config/calendars.yaml + gcal.ts TZID/RRULE)
+
+**자동화**
+- [x] Conference deadlines 자동 sync (매주 월 09:23 KST)
+- [x] Slack Weekly Summary 자동 발송 (월 09:37 + 수 09:23 KST)
+- [x] Public 사이트 유출 검증 (6개 페이지, lab 데이터 0건)
+- [x] UI 문구 개선 ("연결 안 됨" vs "일정 없음" 구분)
+- [x] Cron 오프셋 조정 (정각 skip 이슈 대응)
+
+**Lab Brain**
 - [x] Lab Brain Claude Project 구축·테스트
 - [x] 참조 사이트 조사·확정 (MILAB, KIXLAB, al-folio)
-- [x] 미팅 프랙티스 결정 (랩 세미나 수 15:00, 연구 1:1 매주, Personal 1-on-1 월 1회)
 
 ---
 
-## 20. 진행 중 (다음 Claude Code 세션)
+## 20. 남은 작은 TODO
 
-- [ ] Research Plan 인프라 (`lab-os-private/research-plans/`)
-- [ ] Lab Seminar 인프라 (`content/lab-seminars/`)
-- [ ] Handbook operations.md의 §1 랩 세미나 개편 반영 (**수요일 15:00** 로 시간 변경 포함)
-- [ ] research-plan-guide.md 작성
-
-⚠️ **중요**: 이전에 준비한 Claude Code 프롬프트는 "화 16:00" 기준이었으니, 세션 시작 시 **"수 15:00"** 로 수정 후 실행 필요. 로테이션 파일 위치는 **public** (`content/lab-seminars/_rotation-YYYY-학기.yaml`).
+- [ ] `content/handbook/tutorials/calendar-setup.md`의 TODO(PI) 2곳 채우기
+  - 구독 URL (아래 §15 안내 값)
+  - Slack 채널명 (Weekly Summary가 발송되는 채널)
+- [ ] 데드라인·세미나 캘린더 추가 gcal_id 
+  - 현재 0/3 연결, Phase 2 이전에 필수 아님
+  - lab_official만 있어도 실용상 OK
+- [ ] 학생 대상 공지 (2026 가을 학기 시작 시):
+  - Research Plan 첫 작성 안내
+  - 랩 세미나 시간·형식 변경 안내 (수 15:00)
+  - Personal 1-on-1 도입 안내
+- [ ] Third-party actions v5 릴리스 시 workflow 업데이트
+  - actions/checkout@v4 → @v5 등
+  - Node 20 deprecation 대응
 
 ---
 
 ## 21. 로드맵
 
-**Phase 1 (거의 완료)**: Public 홈페이지 + 기본 콘텐츠
+**Phase 1 (마무리 단계)**: Public 홈페이지 + 기본 콘텐츠 + 자동화
 - [x] 사이트 라이브
 - [x] Handbook 3 policies 초안
-- [ ] Research plan / Lab seminar 인프라 (진행 중)
-- [ ] **2026 가을 학기 시작 시 학생 전원 Research Plan 안내** (다음 주)
+- [x] Research plan / Lab seminar 인프라
+- [x] 캘린더 인프라 + 자동 sync + Slack 요약
+- [ ] 학기 시작 시 학생 공지 (2026 가을)
 
-**Phase 2 (4~6주 후)**: Internal dashboard
-- GitHub OAuth 인증
-- 출결 체크인 UI
-- GCal 실제 연동
-- 컨퍼런스 데드라인
+**Phase 2 (4~6주 후)**: Internal dashboard + 인증
+- GitHub OAuth 인증 (본격 도입)
+- 출결 체크인 UI 실작동
+- **GCal 실제 렌더링** (`/internal/calendar`에 실제 이벤트 표시)
 - **1:1 아젠다·이력 트래킹 시스템**
+- **PI 전용 인건비 현황 대시보드** (admin-only, lab-os-private)
 
-**Phase 3 (이후)**: Claude 통합·자동화
+**Phase 3 (이후)**: Claude 통합·심화 자동화
 - arXiv 다이제스트
 - 논문 게재 시 자동 sync
 - 주간 랩 리포트
-- Slack 알림
+- Slack 알림 심화 (개별 데드라인 D-14/7/3)
 
 **병행**: Lab Brain 학생 접근 방식 결정·구축
 
 ### 다음 세션 후보
+0. ⚠️ **인건비 현황 대시보드 요구사항 논의** (PI 세션 commitment — 다음 세션 시작 시 remind)
+   - 관리자(PI)만 접근
+   - lab-os-private 저장 (개인정보·급여 민감)
+   - `/internal/admin/personnel` 형태 라우팅 검토
+   - 데이터 후보: 학생별 grant 참여율, 월별 인건비 지급, 잔여 예산, BK21 계약 등
+   - Phase 2 (인증) 붙인 후 실제 구현
 1. **wandb 도입 계획** (Phase B 재개, Research Plan 이후)
 2. Lab Brain 학생 접근 결정 (Notion 검토, DIY 등)
 3. Publications 카드 UI 실험
@@ -475,6 +541,8 @@ Claude Project 공유는 Team/Enterprise 플랜에서만 가능. 검토 중인 �
 - **wandb 도입 시점·컨벤션** (다음 세션)
 - **Slack #daily-log 도입 여부**
 - **랩 세미나 심화 개편** — 30/20 분리, 지정 discussant 등 (일단 최소 개편만)
+- **Slack slash command (`/lab-calendar`)** — 실사용 패턴 관찰 후 결정
+  - 자동화 + 북마크로 대부분 커버, 지금 셋업 오버헤드 비추
 - 학교 `.ac.kr` 서브도메인 신청 여부
 - 각 개체 스키마 세부 필드
 - Grant 예산 트래킹 깊이 확장 여부
@@ -516,6 +584,23 @@ Claude Project 공유는 Team/Enterprise 플랜에서만 가능. 검토 중인 �
 - HANDOFF는 살아있는 문서. 큰 결정 시 업데이트.
 - Project knowledge에 재업로드 필요 (자동 sync 아님).
 - 큰 변경 발생 시에만 (매주 X).
+
+### GitHub Actions 관리 팁
+- Third-party actions (checkout, setup-node, pnpm 등)은 새 major 버전 릴리스 시 
+  workflow 파일 업데이트
+- Node.js runtime deprecation warning은 warning이 error로 바뀌기 전에 대응
+  - 예: `actions/checkout@v4` → `@v5` (v5 릴리스 시)
+- 현재 Node 20 deprecation warning 있음 (2025-09 발표) — 
+  각 action의 v5 릴리스 대기 중
+- **Cron 스케줄은 정각·흔한 분 피하기**: `0 0 * * 1`처럼 정각(:00)이나 
+  :15/:30/:45 같은 흔한 분은 GitHub 부하 관리로 skip 리스크. 
+  :23, :37 같은 비관행 분 사용 (2026-09 실제 skip 겪은 후 조정)
+
+### 캘린더 시스템 유지
+- Public 사이트에 lab 데이터가 실수로 커밋되지 않는지 정기 확인
+  (major refactor 후 검증 권장)
+- GCal iCal URL은 secret으로만 관리, 코드/문서에 절대 하드코딩 X
+- 노출 의심 시 GCal에서 iCal URL 재발급 → GitHub Secret 갱신
 
 ---
 
