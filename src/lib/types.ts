@@ -442,6 +442,27 @@ export interface TrackedVenue {
   category?: string;
 }
 
+// ─── Workshop (수동 관리) ────────────────────────────────────
+
+/**
+ * content/workshops.yaml 의 workshops[] 한 줄.
+ *
+ * 학회(Conference)와 달리 자동 수집하지 않습니다 — huggingface/ai-deadlines에
+ * 워크숍 개별 항목이 잘 없고, 메인 학회가 확정된 뒤에야 워크숍 목록이 뜨는 경우가
+ * 많아 자동화 비용 대비 실익이 낮습니다. 학기 초에 한 번 훑어보는 정도의
+ * 저유지보수 방식을 의도했습니다.
+ */
+export type WorkshopStatus = 'upcoming' | 'past' | 'skipped';
+
+export interface Workshop {
+  name: string;
+  parent_conference?: string;
+  workshop_deadline?: string;
+  url?: string;
+  tags?: string[];
+  status?: WorkshopStatus;
+}
+
 /** Slack 요약·내부 캘린더가 마감을 묶어 보여주는 티어. */
 export type DeadlineTier = 'urgent' | 'this_month' | 'next_month' | 'future';
 

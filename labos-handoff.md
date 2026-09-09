@@ -401,6 +401,18 @@ content/lab-seminars/
   Slack 요약·`/internal/calendar`가 마감을 묶어 보여줍니다. D-30 이내는 여전히
   `/calendar`(공개)·`/internal/deadlines`의 강조 기준(`IMMINENT_DAYS`)입니다 — 별개 값.
 
+### Workshop (신설, 수동 관리)
+- `content/workshops.yaml`의 `workshops[]` — 학회와 달리 **자동 수집하지 않습니다**
+  (huggingface/ai-deadlines에 워크숍 개별 항목이 잘 없고, 메인 학회 프로그램 확정
+  후에야 워크숍 CFP가 뜨는 경우가 많아 자동화 비용 대비 실익이 낮음). 학기 초에
+  한 번 훑어보고 채우는 저유지보수 방식.
+- `src/lib/deadlines.ts`의 `getWorkshops()` / `getUpcomingWorkshops()`가 읽습니다.
+  파일이 없거나 비어 있으면 빈 배열 — 정상 상태입니다.
+- `/internal/calendar`에 별도 섹션(비어 있으면 EmptyState), Slack 요약에도 섹션
+  (비어 있으면 **섹션 자체를 생략** — 사이트의 EmptyState 관례와 다르게 한 것은,
+  Slack은 매주 오는 push라 빈 섹션이 반복되면 그 자체가 소음이기 때문).
+- 아직 비어 있음 — `content/handbook/tutorials/calendar-setup.md` §4 참고해 PI가 채워야 함.
+
 ### 자동화 (라이브)
 - **Sync Conference Deadlines**: 매주 월 09:23 KST 자동 실행
 - **Weekly Summary (Slack)**: 매주 월 09:37 KST + 수 09:23 KST 자동 발송

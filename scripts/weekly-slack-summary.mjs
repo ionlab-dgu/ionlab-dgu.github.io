@@ -13,6 +13,8 @@
  *      (수동 목록 + 자동 수집 캐시를 합친 것), 티어별(긴급/이번 달/다음 달/그 이후)로
  *      묶어서 보여줍니다. 티어 하나에 5건 넘게 있으면 나머지는 "그 외 N개는
  *      사이트 참조"로 접습니다 — 그래야 학회 30개를 추적해도 메시지가 안 길어집니다.
+ *   3. content/workshops.yaml 에 적힌 workshop (있을 때만 — 학회와 달리 자동
+ *      수집하지 않는 수동 목록이라, 비어 있으면 이 섹션은 아예 안 뜹니다)
  *
  * ── ⚠️ 이 스크립트가 기대고 있는 전제
  * **SLACK_WEBHOOK_URL 이 가리키는 채널은 랩 내부 전용(학생 + PI)입니다.**
@@ -155,7 +157,23 @@ function tieredDeadlines(from) {
   return groups;
 }
 
-// ─── 2. 랩 일정 ──────────────────────────────────────────────
+// ─── 2. Workshop (수동 관리) ─────────────────────────────────
+
+/**
+ * content/workshops.yaml 의 workshops[]. 학회와 달리 자동 수집하지 않으므로
+ * 파일이 없거나 비어 있는 게 정상 상태입니다 — 그 경우 buildMessage가 섹션 자체를
+ * 생략합니다(사이트의 EmptyState 관례와 다르게, Slack 메시지는 매주 오는 push라
+ * 빈 섹션이 반복되면 그 자체가 소음이 됩니다).
+ */
+function upcomingWorkshops(from) {
+  const manual = readYaml(path.join(CONTENT, 'workshops.yaml'));
+  return (manual.workshops ?? [])
+    .filter((w) => w?.name && w.status !== 'skipped')
+    .filter((w) => !w.workshop_deadline || daysUntil(w.workshop_deadline, from) >= 0)
+    .sort((a, b) => (a.workshop_deadline ?? '9999').localeCompare(b.workshop_deadline ?? '9999'));
+}
+
+// ─── 3. 랩 일정 ──────────────────────────────────────────────
 
 /**
  * iCal 주소를 정합니다: ical_url > env_var.
@@ -216,7 +234,7 @@ async function upcomingLabEvents(from) {
   return all.sort((a, b) => a.start.localeCompare(b.start));
 }
 
-// ─── 3. 본문 ────────────────────────────────────────────────
+// ─── 4. 본문 ────────────────────────────────────────────────
 
 const WEEKDAY_KO = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -231,7 +249,7 @@ function eventTimeLabel(e) {
   return e.time ? `${date} ${e.time}` : `${date} 종일`;
 }
 
-function buildMessage(deadlinesByTier, events, from) {
+function buildMessage(deadlinesByTier, workshops, events, from) {
   const week = from.toLocaleDateString('ko-KR', {
     year: 'numeric',
     month: 'long',
@@ -272,6 +290,18 @@ function buildMessage(deadlinesByTier, events, from) {
     }
   }
 
+  // 없거나 비어 있으면 섹션째 생략합니다 — workshops.yaml은 수동 관리라 안 채워둔
+  // 랩이 더 많을 텐데, "Workshop (0건)"이 매주 뜨면 그 자체가 소음입니다.
+  if (workshops.length > 0) {
+    lines.push('', `*Workshop* (${workshops.length}건)`);
+    for (const w of workshops) {
+      const name = w.url ? `<${w.url}|${w.name}>` : w.name;
+      const parent = w.parent_conference ? ` (${w.parent_conference})` : '';
+      const due = w.workshop_deadline ? ` — ${w.workshop_deadline} 마감` : '';
+      lines.push(`· ${name}${parent}${due}`);
+    }
+  }
+
   lines.push('', '_학회 마감은 공식 CFP가 정본입니다. 투고를 결정했다면 직접 확인하세요._');
   return lines.join('\n');
 }
@@ -287,8 +317,11 @@ async function main() {
   const deadlineCount = TIER_ORDER.reduce((sum, tier) => sum + deadlinesByTier[tier].length, 0);
   console.log(`  ${green('✓')} 마감 ${dim(`${deadlineCount}건 (티어별 그룹핑)`)}`);
 
+  const workshops = upcomingWorkshops(from);
+  console.log(`  ${green('✓')} Workshop ${dim(`${workshops.length}건`)}`);
+
   const events = await upcomingLabEvents(from);
-  const message = buildMessage(deadlinesByTier, events, from);
+  const message = buildMessage(deadlinesByTier, workshops, events, from);
 
   console.log(`\n${dim('─'.repeat(24))}`);
   console.log(message);

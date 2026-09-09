@@ -23,6 +23,7 @@ import type {
   DeadlineTier,
   FetchedConferences,
   TrackedVenue,
+  Workshop,
 } from './types';
 
 /** D-30 이내면 "임박". 대시보드 강조 기준. */
@@ -139,6 +140,49 @@ export function getConferences(): Conference[] {
   }
 
   return [...merged.values()].sort((a, b) => (a.deadline ?? '').localeCompare(b.deadline ?? ''));
+}
+
+// ─── Workshop (수동 관리) ────────────────────────────────────
+
+const WORKSHOPS_YAML = 'workshops.yaml';
+
+interface WorkshopsFile {
+  workshops?: Workshop[];
+}
+
+/** content/workshops.yaml 을 읽습니다 (private 오버레이가 있으면 그것도). 없어도 빈 배열. */
+function readWorkshopsFiles(): WorkshopsFile[] {
+  const files = [
+    path.join(CONTENT_DIR, WORKSHOPS_YAML),
+    ...contentRoots()
+      .filter((r) => r.private)
+      .map((r) => path.join(r.dir, WORKSHOPS_YAML)),
+  ];
+
+  const out: WorkshopsFile[] = [];
+  for (const file of files) {
+    try {
+      const parsed = parseYaml<WorkshopsFile | null>(fs.readFileSync(file, 'utf-8'));
+      if (parsed && typeof parsed === 'object') out.push(parsed);
+    } catch {
+      // 파일이 없거나 비어 있으면 그냥 건너뜁니다 — 워크숍은 수동 관리라
+      // 파일 자체가 없는 게 정상 상태입니다.
+    }
+  }
+  return out;
+}
+
+/** content/workshops.yaml 의 workshops[] 전체. 파일이 없거나 비어 있으면 빈 배열. */
+export function getWorkshops(): Workshop[] {
+  return readWorkshopsFiles().flatMap((f) => f.workshops ?? []);
+}
+
+/** 지나지 않았고 skipped가 아닌 워크숍만, 마감일 오름차순(마감 미상은 뒤로). */
+export function getUpcomingWorkshops(from = new Date()): Workshop[] {
+  return getWorkshops()
+    .filter((w) => w?.name && w.status !== 'skipped')
+    .filter((w) => !w.workshop_deadline || daysUntil(w.workshop_deadline, from) >= 0)
+    .sort((a, b) => (a.workshop_deadline ?? '9999').localeCompare(b.workshop_deadline ?? '9999'));
 }
 
 /** 두 날짜(YYYY-MM-DD) 사이의 일수. 음수면 이미 지났다는 뜻. */

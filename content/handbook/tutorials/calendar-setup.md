@@ -5,7 +5,7 @@ title: 캘린더 구독하기
 order: 43
 visibility: public
 audience: []
-updated: 2026-09-01
+updated: 2026-09-10
 ---
 
 # 캘린더 구독하기
@@ -22,6 +22,7 @@ updated: 2026-09-01
 | 랩 일정 (미팅·세미나) | **Google Calendar 구독** → 아래 1번. 이게 기본입니다 |
 | 랩 일정 (사이트에서)  | `/internal/calendar` — 랩 구성원만                   |
 | 학회 투고 마감        | [/calendar](/calendar) (공개)                        |
+| Workshop 마감         | `/internal/calendar` — 랩 구성원만, 수동 관리         |
 | 과제 리포트 마감      | `/internal/deadlines` — 공개 페이지에는 없습니다     |
 | 이번 주 요약          | Slack (매주 월요일 아침)                             |
 
@@ -90,21 +91,52 @@ tracked_venues:
 
 ## 3. 주간 Slack 요약
 
-매주 월요일 아침, **이번 주 랩 일정과 임박한 학회 마감**이 Slack에 올라옵니다.
+매주 월요일 아침(+ 수요일 리마인더), **이번 주 랩 일정과 앞으로 180일 이내 학회
+마감**이 Slack에 올라옵니다. 학회 마감은 티어(긴급 D-14 / 이번 달 D-30 / 다음 달
+D-60 / 그 이후 D-180)로 묶이고, 티어 하나에 5건 넘게 있으면 나머지는 "그 외 N개는
+사이트 참조"로 접힙니다. 빈 티어는 아예 안 뜹니다.
 
 ```
 *앞으로 7일 일정* (2건)
 · 9/2(수) 15:00 — 그룹 미팅
 · 9/4(금) 10:00 — 논문 리딩
 
-*마감 D-30 이내* (2건)
+*학회 마감*
+_긴급_ (1건)
+· `D-6` ICRA 2027 논문 마감 — 2026-09-15
+_이번 달_ (1건)
 · `D-18` ICLR 2027 초록 마감 — 2026-09-19
+
+*Workshop* (1건)
+· Diffusion Models Workshop (NeurIPS 2026) — 2026-09-15 마감
 ```
 
 과제 리포트 마감은 담기지 않습니다 — `/internal/deadlines` 에서 봅니다.
+Workshop 섹션은 `content/workshops.yaml`이 비어 있으면 아예 뜨지 않습니다 — 아래
+4번을 보세요.
 
 > **TODO(PI):** 요약을 받을 채널을 정하고 Webhook을 만들어
 > GitHub 저장소 Secrets에 `SLACK_WEBHOOK_URL` 로 등록한 뒤, 채널 이름을 여기 적으세요.
+
+## 4. Workshop 등록하기
+
+학회(위 2번)와 달리 **자동으로 수집되지 않습니다.** huggingface/ai-deadlines에는
+워크숍 개별 항목이 잘 없고, 메인 학회 프로그램이 확정된 뒤에야 워크숍 CFP가 뜨는
+경우가 많아 자동화 비용 대비 실익이 낮기 때문입니다. 학기 초에 한 번 관심 workshop을
+훑어보고 `content/workshops.yaml`에 직접 적으세요:
+
+```yaml
+workshops:
+  - name: Diffusion Models Workshop
+    parent_conference: NeurIPS 2026
+    workshop_deadline: 2026-09-15
+    url: https://...
+    tags: [generative-ai, diffusion]
+    status: upcoming # upcoming | past | skipped
+```
+
+채우면 `/internal/calendar`와 주간 Slack 요약에 뜹니다. 비워두면(기본 상태) 두 곳
+모두 자연스럽게 생략됩니다 — 채우지 않았다고 오류가 나지 않습니다.
 
 ## 잘 안 될 때
 
