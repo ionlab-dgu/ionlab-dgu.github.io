@@ -5,7 +5,7 @@
  *   SLACK_WEBHOOK_URL=https://hooks.slack.com/... node scripts/weekly-slack-summary.mjs
  *   node scripts/weekly-slack-summary.mjs --dry-run   # 포스팅 없이 본문만 출력
  *
- * .github/workflows/weekly-summary.yml 이 주 1회(월 07:00 KST) 돌립니다.
+ * .github/workflows/weekly-summary.yml 이 주 2회(월 09:37 KST + 수 09:23 KST) 돌립니다.
  *
  * 담는 것:
  *   1. 앞으로 7일간의 랩 일정 (제목·날짜·시각)
@@ -15,6 +15,15 @@
  *      사이트 참조"로 접습니다 — 그래야 학회 30개를 추적해도 메시지가 안 길어집니다.
  *   3. content/workshops.yaml 에 적힌 workshop (있을 때만 — 학회와 달리 자동
  *      수집하지 않는 수동 목록이라, 비어 있으면 이 섹션은 아예 안 뜹니다)
+ *
+ * ── 실행 시각 로깅 (관찰용, 2026-09-10 도입)
+ * 2026-09-09 실행이 예정(09:23 KST)보다 4시간29분 늦게(13:52 KST) 돌았습니다.
+ * GitHub Actions 예약 실행은 부하가 몰리면 늦게 돈다고 공식 문서에 나와 있지만
+ * 이 정도로 늦은 사례는 처음이라, 패턴인지 일회성인지 보려고 매 실행마다
+ * 예정 시각과 실제 트리거 시각을 로그에 남깁니다. Slack 메시지에는 넣지 않습니다
+ * (독자에게는 의미 없는 운영 정보라서) — Actions 로그에서만 봅니다.
+ * schedule 이벤트일 때만 계산합니다 (workflow_dispatch는 "예정"이 없으므로).
+ * 2~4주 데이터가 쌓이면 외부 cron 서비스로 옮길지 이 로그로 판단합니다.
  *
  * ── ⚠️ 이 스크립트가 기대고 있는 전제
  * **SLACK_WEBHOOK_URL 이 가리키는 채널은 랩 내부 전용(학생 + PI)입니다.**
@@ -306,6 +315,86 @@ function buildMessage(deadlinesByTier, workshops, events, from) {
   return lines.join('\n');
 }
 
+// ─── 실행 시각 로깅 (관찰용, 2026-09-10 도입) ─────────────────
+
+const SCHEDULE_DELAY_WARN_MINUTES = 15;
+
+/** UTC ISO 문자열을 'YYYY-MM-DD HH:mm KST' 로. 로그 가독성용. */
+function toKstLabel(date) {
+  return (
+    date.toLocaleString('sv-SE', { timeZone: 'Asia/Seoul' }).replace('T', ' ') + ' KST'
+  );
+}
+
+/**
+ * 'MIN HOUR * * DOW' 형태의 cron 표현식에서 시:분만 뽑습니다.
+ * 이 워크플로의 cron은 전부 이 형태(요일 지정, 매일/매월 아님)라 그 이상은
+ * 다루지 않습니다 — 못 다루는 형태를 만나면 null (틀린 값을 지어내지 않습니다).
+ */
+function parseCronHourMinute(cron) {
+  const parts = String(cron ?? '').trim().split(/\s+/);
+  if (parts.length !== 5) return null;
+  const [min, hour] = parts.map(Number);
+  if (!Number.isInteger(min) || !Number.isInteger(hour)) return null;
+  return { hour, min };
+}
+
+/**
+ * 예정 실행 시각과 실제 트리거 시각을 비교해 로그에 남깁니다.
+ *
+ * schedule 이벤트일 때만 계산합니다 — workflow_dispatch(수동 실행)에는 "예정
+ * 시각"이라는 개념이 없습니다. 필요한 두 값(WEEKLY_SUMMARY_CRON, WEEKLY_SUMMARY_RUN_STARTED_AT)이
+ * 없으면(예: 로컬 실행) 계산을 건너뛰고 그 사실만 남깁니다 — 이 로그가 없다고
+ * 스크립트가 실패하면 안 됩니다(CLAUDE.md: 외부 신호 없어도 안 깨짐).
+ */
+function logRunTiming(now) {
+  console.log(`  ${dim('실행 시각')} UTC ${now.toISOString()} · ${toKstLabel(now)}`);
+
+  const eventName = process.env.GITHUB_EVENT_NAME;
+  if (eventName !== 'schedule') {
+    console.log(`  ${dim('–')} ${dim(`event=${eventName ?? '(로컬 실행)'} — 지연 계산은 schedule 실행에서만 합니다.`)}`);
+    return;
+  }
+
+  const cron = process.env.WEEKLY_SUMMARY_CRON;
+  const startedAtRaw = process.env.WEEKLY_SUMMARY_RUN_STARTED_AT;
+  const hourMin = parseCronHourMinute(cron);
+  const startedAt = startedAtRaw ? new Date(startedAtRaw) : null;
+
+  if (!hourMin || !startedAt || Number.isNaN(startedAt.getTime())) {
+    console.log(
+      `  ${yellow('!')} 예정 시각을 계산하지 못했습니다 (cron="${cron ?? ''}", ` +
+        `run_started_at="${startedAtRaw ?? ''}"). 워크플로 env 설정을 확인하세요.`,
+    );
+    return;
+  }
+
+  // cron은 매치된 요일에만 발동하므로, 실제 트리거 시각과 같은 UTC 날짜에
+  // 예정 시:분을 얹으면 그 회차의 예정 시각이 됩니다.
+  const expected = new Date(
+    Date.UTC(
+      startedAt.getUTCFullYear(),
+      startedAt.getUTCMonth(),
+      startedAt.getUTCDate(),
+      hourMin.hour,
+      hourMin.min,
+      0,
+    ),
+  );
+  const delayMinutes = Math.round((startedAt.getTime() - expected.getTime()) / 60_000);
+
+  console.log(`  ${dim('예정 트리거')} UTC ${expected.toISOString()} · ${toKstLabel(expected)}`);
+  console.log(`  ${dim('실제 트리거')} UTC ${startedAt.toISOString()} · ${toKstLabel(startedAt)}`);
+  console.log(`  ${dim('지연')} ${delayMinutes}분`);
+
+  if (delayMinutes > SCHEDULE_DELAY_WARN_MINUTES) {
+    console.log(
+      `  ${yellow(`⚠ WARNING: 예약 실행이 ${delayMinutes}분 늦게 트리거됐습니다 ` +
+        `(> ${SCHEDULE_DELAY_WARN_MINUTES}분). GitHub Actions 스케줄 지연이며 이 스크립트의 문제가 아닙니다.`)}`,
+    );
+  }
+}
+
 // ─── 실행 ───────────────────────────────────────────────────
 
 async function main() {
@@ -313,6 +402,7 @@ async function main() {
   console.log(dim('─'.repeat(24)));
 
   const from = new Date();
+  logRunTiming(from);
   const deadlinesByTier = tieredDeadlines(from);
   const deadlineCount = TIER_ORDER.reduce((sum, tier) => sum + deadlinesByTier[tier].length, 0);
   console.log(`  ${green('✓')} 마감 ${dim(`${deadlineCount}건 (티어별 그룹핑)`)}`);

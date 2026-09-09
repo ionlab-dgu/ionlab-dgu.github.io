@@ -424,6 +424,18 @@ content/lab-seminars/
 - **⚠️ Cron 오프셋 주의**: 정각(:00) 및 흔한 분(:15, :30)은 GitHub 부하 관리로 
   skip 리스크. 비관행 분(:23, :37 등) 사용 관례.
 
+### 예약 실행 지연 관찰 (2026-09-10 시작)
+- 첫 예약 실행(2026-09-07 00:00 UTC)은 통째로 **skip**됐고(위 cron 오프셋 조정의
+  원인), 그 다음 2026-09-09 실행은 skip은 안 됐지만 예정(09:23 KST)보다
+  **4시간29분 늦게**(13:52 KST) 트리거됐습니다. 실행 기록으로 실측 확인함
+  (`createdAt: 2026-09-09T04:52:33Z`, cron 예정 `00:23Z`).
+- 이 한 건만으로는 판단할 수 없어서, `weekly-summary.yml`이 매 실행마다 예정 vs
+  실제 트리거 시각·지연분을 Actions 로그에 남기도록 계측했습니다
+  (`scripts/weekly-slack-summary.mjs`의 `logRunTiming()`). 15분 초과 지연이면
+  로그에 WARNING. Slack 메시지에는 안 넣습니다 — 독자에게는 무의미한 운영 정보라서.
+- **2~4주 데이터가 쌓이면** 판단: 지연이 상시적이면 외부 cron 서비스(GitHub Actions
+  scheduled workflow 대신)로 옮기는 것을 고려. 산발적이면 현행 유지.
+
 ### 안전장치
 - Public 사이트 빌드: `PUBLIC_ONLY=1` 게이트 → lab 데이터 로드 자체 X
 - Slack fetch 경로: 사이트 빌드와 완전 격리 (secret은 workflow에서만 참조)

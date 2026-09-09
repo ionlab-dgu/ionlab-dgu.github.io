@@ -11,6 +11,19 @@ name: Weekly summary
 #
 # SLACK_WEBHOOK_URL 시크릿이 없으면 요약을 로그에만 남기고 성공합니다.
 # 시크릿을 넣기 전에도 워크플로가 초록색이어야 무슨 일이 나는지 볼 수 있습니다.
+#
+# ⚠️ 실행 시각 로깅 (관찰용, 2026-09-10 도입)
+#    2026-09-09 실행이 예정(09:23 KST)보다 4시간29분 늦게 트리거됐습니다. 패턴인지
+#    일회성인지 보려고 매 실행마다 예정 vs 실제 트리거 시각을 Actions 로그에
+#    남깁니다(Slack 메시지에는 안 넣습니다 — scripts/weekly-slack-summary.mjs의
+#    logRunTiming() 참고). "실행 시각 조회" 스텝이 이 워크플로 실행 자체의
+#    run_started_at을 API로 조회해 넘깁니다 — GitHub Actions 러너에 이 값이
+#    기본 env로 주어지지 않기 때문입니다 (있는 건 GITHUB_RUN_ID뿐).
+#    2~4주 데이터가 쌓이면 이 로그로 외부 cron 서비스 도입 여부를 판단합니다.
+#
+#    env 이름이 WEEKLY_SUMMARY_RUN_STARTED_AT인 이유: `GITHUB_` 접두어는 GitHub가
+#    예약해 둬서 워크플로 env로 직접 설정할 수 없습니다(설정 자체가 유효성 검사
+#    오류) — GITHUB_RUN_STARTED_AT을 그대로 쓰면 안 됩니다.
 
 on:
   schedule:
@@ -32,6 +45,9 @@ on:
 
 permissions:
   contents: read
+  # 아래 "실행 시각 조회" 스텝이 이 워크플로 실행의 run_started_at을 API로
+  # 읽는 데 필요합니다. 그 외에는 쓰지 않습니다.
+  actions: read
 
 concurrency:
   group: weekly-summary
@@ -54,10 +70,28 @@ jobs:
       - name: 의존성 설치
         run: pnpm install --frozen-lockfile
 
+      # schedule 실행에서만 의미가 있습니다. API 호출이 실패해도(권한 문제 등)
+      # 워크플로를 세우지 않습니다 — 이 값은 관찰용 로그일 뿐이라 없으면
+      # scripts/weekly-slack-summary.mjs가 그 사실만 남기고 넘어갑니다.
+      - name: 실행 시각 조회
+        id: run_info
+        if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          started_at=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --jq .run_started_at || true)
+          echo "started_at=${started_at}" >> "$GITHUB_OUTPUT"
+
       - name: 요약 생성 · 포스팅
         run: node scripts/weekly-slack-summary.mjs
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          # schedule 이벤트를 트리거한 cron 표현식 그 자체(예: '23 0 * * 3').
+          # 이 워크플로에 cron이 두 개(월/수)라 "예정 시각"이 하나로 고정되지
+          # 않으므로, 실제로 매치된 것을 GitHub이 알려주는 이 값을 씁니다.
+          WEEKLY_SUMMARY_CRON: ${{ github.event.schedule }}
+          WEEKLY_SUMMARY_RUN_STARTED_AT: ${{ steps.run_info.outputs.started_at }}
           # 랩 공식 캘린더의 iCal 주소.
           #
           # 이 job 은 사이트를 빌드하지 않습니다 — 읽어서 Slack 에 보내기만 하고
