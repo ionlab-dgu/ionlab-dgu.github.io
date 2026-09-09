@@ -9,7 +9,10 @@
  *
  * 담는 것:
  *   1. 앞으로 7일간의 랩 일정 (제목·날짜·시각)
- *   2. D-30 이내 학회 마감 (수동 목록 + 자동 수집 캐시를 합친 것)
+ *   2. 앞으로 180일(conferences.yaml 의 display.lookahead_days) 이내 학회 마감
+ *      (수동 목록 + 자동 수집 캐시를 합친 것), 티어별(긴급/이번 달/다음 달/그 이후)로
+ *      묶어서 보여줍니다. 티어 하나에 5건 넘게 있으면 나머지는 "그 외 N개는
+ *      사이트 참조"로 접습니다 — 그래야 학회 30개를 추적해도 메시지가 안 길어집니다.
  *
  * ── ⚠️ 이 스크립트가 기대고 있는 전제
  * **SLACK_WEBHOOK_URL 이 가리키는 채널은 랩 내부 전용(학생 + PI)입니다.**
@@ -40,10 +43,18 @@ import { ROOT, CONTENT, green, red, yellow, dim, bold } from './_lib.mjs';
 // ical.ts 는 `import type` 밖에 안 써서 .mjs 에서 그대로 import 됩니다.
 import { parseIcal, expandEvents, DEFAULT_TIMEZONE } from '../src/lib/ical.ts';
 
-const IMMINENT_DAYS = 30;
 const EVENT_HORIZON_DAYS = 7;
 const TIMEOUT_MS = 15_000;
 const DRY_RUN = process.argv.includes('--dry-run');
+
+// 티어 경계·순서는 content/conferences.yaml 의 display.tier_thresholds 와 같은
+// 기본값입니다 (src/lib/deadlines.ts 의 DISPLAY_FALLBACK과 동일하게 유지하세요).
+const TIER_ORDER = ['urgent', 'this_month', 'next_month', 'future'];
+const TIER_LABEL = { urgent: '긴급', this_month: '이번 달', next_month: '다음 달', future: '그 이후' };
+const TIER_THRESHOLDS_FALLBACK = { urgent: 14, this_month: 30, next_month: 60, future: 180 };
+const LOOKAHEAD_DAYS_FALLBACK = 180;
+// 티어 하나에 너무 많이 쌓이면 메시지가 길어져 아무도 안 읽습니다.
+const MAX_PER_TIER = 5;
 
 /** CORE_SCHEMA 로 파싱해 날짜를 문자열로 남깁니다 (src/lib/yaml.ts 와 같은 이유). */
 function parseYaml(source) {
@@ -100,8 +111,31 @@ function collectConferences() {
   return [...merged.values()];
 }
 
-function imminentDeadlines(from) {
-  const items = [];
+/** conferences.yaml 의 display.lookahead_days / tier_thresholds. 없으면 기본값. */
+function getDisplayConfig() {
+  const manual = readYaml(path.join(CONTENT, 'conferences.yaml'));
+  const display = manual.display ?? {};
+  return {
+    lookaheadDays: display.lookahead_days ?? LOOKAHEAD_DAYS_FALLBACK,
+    tierThresholds: { ...TIER_THRESHOLDS_FALLBACK, ...(display.tier_thresholds ?? {}) },
+  };
+}
+
+/** 남은 일수가 어느 티어인지. 지난 마감이거나 future 경계보다 멀면 null(= 표시 안 함). */
+function tierOf(daysLeft, thresholds) {
+  if (daysLeft < 0) return null;
+  if (daysLeft <= thresholds.urgent) return 'urgent';
+  if (daysLeft <= thresholds.this_month) return 'this_month';
+  if (daysLeft <= thresholds.next_month) return 'next_month';
+  if (daysLeft <= thresholds.future) return 'future';
+  return null;
+}
+
+/** 학회 마감을 티어별로 묶습니다. 각 티어 안에서는 마감일 오름차순. */
+function tieredDeadlines(from) {
+  const { lookaheadDays, tierThresholds } = getDisplayConfig();
+  const groups = { urgent: [], this_month: [], next_month: [], future: [] };
+
   for (const c of collectConferences()) {
     const label = `${c.name}${c.year ? ` ${c.year}` : ''}`;
     for (const [due, what] of [
@@ -110,11 +144,15 @@ function imminentDeadlines(from) {
     ]) {
       if (!due) continue;
       const daysLeft = daysUntil(due, from);
-      if (daysLeft < 0 || daysLeft > IMMINENT_DAYS) continue;
-      items.push({ label, what, due: String(due).slice(0, 10), daysLeft, url: c.url });
+      if (daysLeft > lookaheadDays) continue;
+      const tier = tierOf(daysLeft, tierThresholds);
+      if (!tier) continue;
+      groups[tier].push({ label, what, due: String(due).slice(0, 10), daysLeft, url: c.url });
     }
   }
-  return items.sort((a, b) => a.due.localeCompare(b.due));
+
+  for (const tier of TIER_ORDER) groups[tier].sort((a, b) => a.due.localeCompare(b.due));
+  return groups;
 }
 
 // ─── 2. 랩 일정 ──────────────────────────────────────────────
@@ -193,7 +231,7 @@ function eventTimeLabel(e) {
   return e.time ? `${date} ${e.time}` : `${date} 종일`;
 }
 
-function buildMessage(deadlines, events, from) {
+function buildMessage(deadlinesByTier, events, from) {
   const week = from.toLocaleDateString('ko-KR', {
     year: 'numeric',
     month: 'long',
@@ -213,13 +251,24 @@ function buildMessage(deadlines, events, from) {
     }
   }
 
-  lines.push('', `*마감 D-${IMMINENT_DAYS} 이내* (${deadlines.length}건)`);
-  if (deadlines.length === 0) {
+  // 티어별로 묶어서 보여줍니다. 빈 티어는 아예 줄을 만들지 않습니다 — "긴급 (0건)"처럼
+  // 빈 헤더가 매주 반복되면 아무도 안 읽는 잡음이 됩니다.
+  lines.push('', '*학회 마감*');
+  const totalDeadlines = TIER_ORDER.reduce((sum, tier) => sum + deadlinesByTier[tier].length, 0);
+  if (totalDeadlines === 0) {
     lines.push('· 임박한 학회 마감이 없습니다.');
   } else {
-    for (const d of deadlines) {
-      const name = d.url ? `<${d.url}|${d.label}>` : d.label;
-      lines.push(`· \`${ddayLabel(d.daysLeft)}\` ${name} ${d.what} 마감 — ${d.due}`);
+    for (const tier of TIER_ORDER) {
+      const items = deadlinesByTier[tier];
+      if (items.length === 0) continue;
+      lines.push(`_${TIER_LABEL[tier]}_ (${items.length}건)`);
+      const shown = items.slice(0, MAX_PER_TIER);
+      for (const d of shown) {
+        const name = d.url ? `<${d.url}|${d.label}>` : d.label;
+        lines.push(`· \`${ddayLabel(d.daysLeft)}\` ${name} ${d.what} 마감 — ${d.due}`);
+      }
+      const rest = items.length - shown.length;
+      if (rest > 0) lines.push(`· 그 외 ${rest}개는 사이트 참조 (/calendar)`);
     }
   }
 
@@ -234,11 +283,12 @@ async function main() {
   console.log(dim('─'.repeat(24)));
 
   const from = new Date();
-  const deadlines = imminentDeadlines(from);
-  console.log(`  ${green('✓')} 임박 마감 ${dim(`${deadlines.length}건`)}`);
+  const deadlinesByTier = tieredDeadlines(from);
+  const deadlineCount = TIER_ORDER.reduce((sum, tier) => sum + deadlinesByTier[tier].length, 0);
+  console.log(`  ${green('✓')} 마감 ${dim(`${deadlineCount}건 (티어별 그룹핑)`)}`);
 
   const events = await upcomingLabEvents(from);
-  const message = buildMessage(deadlines, events, from);
+  const message = buildMessage(deadlinesByTier, events, from);
 
   console.log(`\n${dim('─'.repeat(24))}`);
   console.log(message);

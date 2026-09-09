@@ -166,7 +166,7 @@ pnpm verify:public   # scripts/verify-public-build.mjs
 
 ```
 content/
-  conferences.yaml                          관심 학회 마감일 (5개 venue)
+  conferences.yaml                          관심 학회 마감일 (30개 venue, D-180 이내)
   members/
     _template.md
     pi-hyeryung-jang.md                     ← 실제 프로필 (채우는 중)

@@ -442,12 +442,19 @@ export interface TrackedVenue {
   category?: string;
 }
 
+/** Slack 요약·내부 캘린더가 마감을 묶어 보여주는 티어. */
+export type DeadlineTier = 'urgent' | 'this_month' | 'next_month' | 'future';
+
 /** content/conferences.yaml 의 display 블록. */
 export interface ConferenceDisplayConfig {
   show_upcoming_only: boolean;
   /** 내림차순. 남은 일수가 이 값 이하로 떨어질 때마다 강조 단계가 올라갑니다. */
   highlight_days: number[];
   default_view: 'list' | 'calendar';
+  /** 학회 마감을 얼마나 앞서서까지 보여줄지 (일). 기본 180. */
+  lookahead_days?: number;
+  /** 티어 경계 (일, 오름차순). 이보다 먼 마감은 어느 티어에도 안 들어갑니다. */
+  tier_thresholds?: Record<DeadlineTier, number>;
 }
 
 /** scripts/fetch-conferences.mjs 가 만드는 캐시 파일의 모양. */

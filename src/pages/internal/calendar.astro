@@ -12,7 +12,14 @@ import {
 } from '../../lib/gcal';
 import { calendars } from '../../lib/config';
 import { dayKey } from '../../lib/attendance';
-import { getConferenceDeadlines, getFetchedMeta } from '../../lib/deadlines';
+import {
+  getConferenceDeadlines,
+  getConferenceDisplay,
+  getFetchedMeta,
+  groupDeadlinesByTier,
+  TIER_ORDER,
+  TIER_LABEL,
+} from '../../lib/deadlines';
 
 const events = await fetchAllEvents();
 const today = dayKey();
@@ -38,7 +45,14 @@ const connected = connectedCalendars();
 
 // 학회 마감도 같은 화면에서 봅니다. 과제 마감은 /internal/deadlines 에 있습니다 —
 // 여기서는 '일정'만 다루고 과제 리포트는 성격이 달라 섞지 않습니다.
-const deadlines = getConferenceDeadlines({ withinDays: 60 });
+//
+// 랩 일정(위 60일)과 범위가 다른 것은 의도입니다 — GCal 반복 일정 전개 범위
+// (config/calendars.yaml 의 expand_days)와 학회 마감 조회 범위는 서로 다른 설정이고,
+// 학회 마감은 conferences.yaml 의 display.lookahead_days(기본 180)를 따릅니다.
+const display = getConferenceDisplay();
+const lookaheadDays = display.lookahead_days ?? 180;
+const deadlines = getConferenceDeadlines({ withinDays: lookaheadDays });
+const deadlinesByTier = groupDeadlinesByTier(deadlines, display.tier_thresholds);
 const fetched = getFetchedMeta();
 
 function dayLabel(d: string): string {
@@ -108,7 +122,10 @@ function dayLabel(d: string): string {
   <section class="mt-12 border-t border-gray-200 pt-6 dark:border-gray-800">
     <h2 class="mb-3 font-semibold">
       학회 마감
-      <span class="text-sm font-normal text-gray-500 dark:text-gray-400"> 앞으로 60일 </span>
+      <span class="text-sm font-normal text-gray-500 dark:text-gray-400">
+        {' '}
+        앞으로 {lookaheadDays}일
+      </span>
     </h2>
     {
       !fetched.exists ? (
@@ -118,11 +135,26 @@ function dayLabel(d: string): string {
           command="pnpm sync:conferences"
           icon="◷"
         />
-      ) : (
-        <DeadlineList
-          deadlines={deadlines}
-          emptyHint={`앞으로 60일 안에 임박한 학회 마감이 없습니다. 수집된 학회 ${fetched.count}건 (${fetched.generatedAt ?? '날짜 미상'} 기준) 중 해당하는 것이 없습니다.`}
+      ) : deadlines.length === 0 ? (
+        <EmptyState
+          title={`앞으로 ${lookaheadDays}일 안에 임박한 학회 마감이 없습니다`}
+          hint={`수집된 학회 ${fetched.count}건 (${fetched.generatedAt ?? '날짜 미상'} 기준) 중 해당하는 것이 없습니다.`}
+          icon="◷"
         />
+      ) : (
+        <div class="space-y-8">
+          {TIER_ORDER.filter((tier) => deadlinesByTier[tier].length > 0).map((tier) => (
+            <div>
+              <h3 class="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400">
+                {TIER_LABEL[tier]}{' '}
+                <span class="font-normal text-gray-400 dark:text-gray-500">
+                  ({deadlinesByTier[tier].length}건)
+                </span>
+              </h3>
+              <DeadlineList deadlines={deadlinesByTier[tier]} />
+            </div>
+          ))}
+        </div>
       )
     }
     <p class="mt-3 text-sm text-gray-500 dark:text-gray-400">

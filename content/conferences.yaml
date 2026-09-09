@@ -50,6 +50,11 @@ tracked_venues:
   - name: ICCV
     source: iccv
     category: vision
+  - name: WACV
+    source: wacv
+    category: vision
+  # BMVC 는 huggingface/ai-deadlines 에 파일이 없어(2026-09 확인) 자동 수집 대상에서
+  # 뺐습니다. 투고를 고려하면 아래 3. conferences 에 수동으로 날짜를 적으세요.
 
   # NLP
   - name: ACL
@@ -61,6 +66,10 @@ tracked_venues:
   - name: NAACL
     source: naacl
     category: nlp
+  - name: COLING
+    source: coling
+    category: nlp
+  # EACL 도 BMVC와 같은 이유로 뺐습니다(업스트림에 eacl.yml 없음).
 
   # Theory / Stats
   - name: AISTATS
@@ -68,6 +77,12 @@ tracked_venues:
     category: theory_stats
   - name: UAI
     source: uai
+    category: theory_stats
+  - name: COLT
+    source: colt
+    category: theory_stats
+  - name: ALT
+    source: alt
     category: theory_stats
 
   # Data Mining
@@ -80,6 +95,45 @@ tracked_venues:
   - name: ICDM
     source: icdm
     category: data_mining
+  - name: CIKM
+    source: cikm
+    category: data_mining
+  # SDM도 BMVC·EACL과 같은 이유로 뺐습니다(업스트림에 sdm.yml 없음).
+
+  # Robotics
+  - name: ICRA
+    source: icra
+    category: robotics
+  - name: IROS
+    source: iros
+    category: robotics
+  - name: RSS
+    source: rss
+    category: robotics
+  - name: CoRL
+    source: corl
+    category: robotics
+
+  # Speech / Audio
+  - name: INTERSPEECH
+    source: interspeech
+    category: speech
+  - name: ICASSP
+    source: icassp
+    category: speech
+
+  # Multimedia
+  - name: ACM MM
+    source: acm_mm
+    category: multimedia
+
+  # Web / IR
+  - name: WWW
+    source: www
+    category: web_ir
+  - name: SIGIR
+    source: sigir
+    category: web_ir
 
 # ─────────────────────────────────────────────────────────────
 # 2. display — /calendar 와 /internal/deadlines 의 표시 규칙
@@ -91,6 +145,18 @@ display:
   highlight_days: [30, 14, 7, 3]
   # list | calendar — 지금은 list만 구현돼 있습니다.
   default_view: list
+  # 학회 마감을 얼마나 앞서서까지 보여줄지 (일). 예전엔 60(내부 캘린더 하드코딩)이었고,
+  # 이 값으로 통일했습니다. 화면이 보여주는 범위보다 짧게 두면 마감이 조용히 사라집니다.
+  lookahead_days: 180
+  # Slack 요약·내부 캘린더가 마감을 묶어 보여주는 티어 경계 (일, 오름차순).
+  # 예: daysLeft=10 → urgent, daysLeft=45 → next_month. future 보다 먼 것은
+  # (lookahead_days 안에 있어도) 어느 티어에도 안 들어가 표시되지 않습니다 —
+  # future와 lookahead_days를 다르게 둘 필요는 보통 없어서 지금은 값이 같습니다.
+  tier_thresholds:
+    urgent: 14
+    this_month: 30
+    next_month: 60
+    future: 180
 
 # ─────────────────────────────────────────────────────────────
 # 3. conferences — 사람이 직접 확인해 적는 목록

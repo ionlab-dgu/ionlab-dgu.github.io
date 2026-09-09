@@ -387,21 +387,27 @@ content/lab-seminars/
   - Public 사이트 빌드와 완전 격리
 
 ### 컨퍼런스 데드라인
-- `content/conferences.yaml`에 관심 venue 16개 관리:
-  - Tier 1 General ML: NeurIPS, ICML, ICLR
-  - AI General: AAAI, IJCAI
-  - Vision: CVPR, ECCV, ICCV
-  - NLP: ACL, EMNLP, NAACL
-  - Theory/Stats: AISTATS, UAI
-  - Data Mining: KDD, WSDM, ICDM
+- `content/conferences.yaml`에 관심 venue **30개** 관리 (2026-09 16개→30개 확장):
+  - ML General: NeurIPS, ICML, ICLR / AI General: AAAI, IJCAI
+  - Vision: CVPR, ECCV, ICCV, WACV / NLP: ACL, EMNLP, NAACL, COLING
+  - Theory/Stats: AISTATS, UAI, COLT, ALT / Data Mining: KDD, WSDM, ICDM, CIKM
+  - Robotics: ICRA, IROS, RSS, CoRL / Speech: INTERSPEECH, ICASSP
+  - Multimedia: ACM MM / Web·IR: WWW, SIGIR
+  - **BMVC · EACL · SDM은 huggingface/ai-deadlines에 파일이 없어 자동 수집 대상에서
+    뺐습니다** (2026-09 확인). 투고를 고려하면 `conferences:`에 수동으로 적으세요.
 - aideadlines에서 자동 sync
-- 사이트에 D-30 이내 강조
+- 표시 범위는 `display.lookahead_days`(기본 **180일**, 예전 60일에서 확장)이고,
+  `display.tier_thresholds`(urgent 14 / this_month 30 / next_month 60 / future 180)로
+  Slack 요약·`/internal/calendar`가 마감을 묶어 보여줍니다. D-30 이내는 여전히
+  `/calendar`(공개)·`/internal/deadlines`의 강조 기준(`IMMINENT_DAYS`)입니다 — 별개 값.
 
 ### 자동화 (라이브)
 - **Sync Conference Deadlines**: 매주 월 09:23 KST 자동 실행
 - **Weekly Summary (Slack)**: 매주 월 09:37 KST + 수 09:23 KST 자동 발송
   - 랩 이벤트 (GCAL_ICAL_LAB_GENERAL) + 컨퍼런스 데드라인 포함
   - 랩 내부 채널로만 발송
+  - 학회 마감은 티어별(긴급/이번 달/다음 달/그 이후)로 묶고, 티어당 5건 넘으면
+    "그 외 N개는 사이트 참조"로 접습니다 (venue 30개로 늘어난 뒤 필요해진 처리)
 - 두 workflow 모두 `workflow_dispatch`로 수동 실행 지원
 - **⚠️ Cron 오프셋 주의**: 정각(:00) 및 흔한 분(:15, :30)은 GitHub 부하 관리로 
   skip 리스크. 비관행 분(:23, :37 등) 사용 관례.
@@ -409,7 +415,9 @@ content/lab-seminars/
 ### 안전장치
 - Public 사이트 빌드: `PUBLIC_ONLY=1` 게이트 → lab 데이터 로드 자체 X
 - Slack fetch 경로: 사이트 빌드와 완전 격리 (secret은 workflow에서만 참조)
-- gcal.ts: TZID 오프셋 정확 처리 + RRULE 전개 지원 (60일 window)
+- gcal.ts: TZID 오프셋 정확 처리 + RRULE 전개 지원 (60일 window — 이건 GCal 반복
+  일정 전개 범위 `config/calendars.yaml`의 `expand_days`이고, 학회 마감의
+  `lookahead_days`와는 다른 값입니다. 헷갈리기 쉬워 명시해 둡니다)
 - UI 문구: "연결 안 됨"과 "일정 없음" 구분해서 오해 방지
 
 ---

@@ -20,6 +20,7 @@ import type {
   Conference,
   ConferenceDisplayConfig,
   DeadlineItem,
+  DeadlineTier,
   FetchedConferences,
   TrackedVenue,
 } from './types';
@@ -40,6 +41,8 @@ const DISPLAY_FALLBACK: ConferenceDisplayConfig = {
   show_upcoming_only: true,
   highlight_days: [30, 14, 7, 3],
   default_view: 'list',
+  lookahead_days: 180,
+  tier_thresholds: { urgent: 14, this_month: 30, next_month: 60, future: 180 },
 };
 
 /**
@@ -248,4 +251,47 @@ export function ddayBadge(daysLeft: number): string {
   if (daysLeft <= 7) return 'badge-red';
   if (daysLeft <= IMMINENT_DAYS) return 'badge-amber';
   return 'badge-neutral';
+}
+
+export const TIER_ORDER: DeadlineTier[] = ['urgent', 'this_month', 'next_month', 'future'];
+export const TIER_LABEL: Record<DeadlineTier, string> = {
+  urgent: '긴급',
+  this_month: '이번 달',
+  next_month: '다음 달',
+  future: '그 이후',
+};
+
+/**
+ * 남은 일수가 어느 티어에 속하는지. 지난 마감(daysLeft < 0)이거나 future 경계보다
+ * 먼 마감은 어느 티어에도 안 들어갑니다(null) — 화면에는 아예 안 보여준다는 뜻입니다.
+ */
+export function conferenceTier(
+  daysLeft: number,
+  thresholds: ConferenceDisplayConfig['tier_thresholds'] = DISPLAY_FALLBACK.tier_thresholds,
+): DeadlineTier | null {
+  const t = thresholds ?? DISPLAY_FALLBACK.tier_thresholds!;
+  if (daysLeft < 0) return null;
+  if (daysLeft <= t.urgent) return 'urgent';
+  if (daysLeft <= t.this_month) return 'this_month';
+  if (daysLeft <= t.next_month) return 'next_month';
+  if (daysLeft <= t.future) return 'future';
+  return null;
+}
+
+/** 데드라인 목록을 티어별로 묶습니다. 순서는 TIER_ORDER 기준. */
+export function groupDeadlinesByTier(
+  items: DeadlineItem[],
+  thresholds?: ConferenceDisplayConfig['tier_thresholds'],
+): Record<DeadlineTier, DeadlineItem[]> {
+  const groups: Record<DeadlineTier, DeadlineItem[]> = {
+    urgent: [],
+    this_month: [],
+    next_month: [],
+    future: [],
+  };
+  for (const item of items) {
+    const tier = conferenceTier(item.daysLeft, thresholds);
+    if (tier) groups[tier].push(item);
+  }
+  return groups;
 }
