@@ -51,6 +51,14 @@
   .badge-red {
     @apply bg-red-50 text-red-700 ring-red-600/20 dark:bg-red-900/30 dark:text-red-300 dark:ring-red-400/20;
   }
+  /*
+   * 논문 뱃지(Top X%, Best Paper 등) 전용. 브랜드 골드는 흰 배경 대비가 1.68:1이라
+   * 본문 텍스트로 못 쓰고(CLAUDE.md §브랜드 색), 다른 뱃지처럼 텍스트 색은
+   * brand-700(라이트, 4.79:1) / brand-300(다크, 13.2:1)으로 두고 배경만 옅게 씁니다.
+   */
+  .badge-gold {
+    @apply bg-brand-50 text-brand-700 ring-brand-600/20 dark:bg-brand-900/30 dark:text-brand-300 dark:ring-brand-400/20;
+  }
 
   .card {
     @apply rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900;

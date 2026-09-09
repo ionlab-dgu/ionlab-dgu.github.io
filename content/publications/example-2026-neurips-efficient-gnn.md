@@ -17,6 +17,11 @@ arxiv: '2607.00000'
 code: https://github.com/ionlab-dgu/example-efficient-gnn
 pdf:
 bibkey: hong2026budget
+conference:
+  tier: A*
+  acceptance_rate: 25.8
+  main_or_findings: main
+badges: []
 ---
 
 고정된 연산 예산 아래에서 GNN 추론의 정확도 손실 상한을 보장하는 그래프 희소화 기법을 제안한다.

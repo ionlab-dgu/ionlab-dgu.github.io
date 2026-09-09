@@ -1,0 +1,170 @@
+---
+import PublicLayout from '../../layouts/PublicLayout.astro';
+import Prose from '../../components/common/Prose.astro';
+import {
+  getPublications,
+  getPublicationBadges,
+  getMembers,
+  displayName,
+  publicOnly,
+} from '../../lib/content';
+import { filled } from '../../lib/config';
+
+export function getStaticPaths() {
+  return publicOnly(getPublications()).map((publication) => ({
+    params: { slug: publication.data.slug },
+    props: { publication },
+  }));
+}
+
+const { publication } = Astro.props;
+const p = publication.data;
+
+const STATUS_LABEL: Record<string, string> = {
+  under_review: 'Under review',
+  accepted: 'Accepted',
+  published: 'Published',
+};
+
+const members = publicOnly(getMembers());
+const authors = (p.authors ?? []).map((a) => displayName(a, members));
+const badges = getPublicationBadges(p);
+
+const arxiv = filled(p.arxiv);
+const arxivUrl = arxiv ? (arxiv.startsWith('http') ? arxiv : `https://arxiv.org/abs/${arxiv}`) : undefined;
+const code = filled(p.code);
+const pdf = filled(p.pdf);
+
+// type별 Metrics — 없는 타입의 값은 채워져 있어도 무시합니다 (frontmatter 실수 방지).
+const journal = p.type === 'journal' ? p.journal : undefined;
+const conference = p.type === 'conference' || p.type === 'workshop' ? p.conference : undefined;
+const preprint = p.type === 'preprint' ? p.preprint : undefined;
+
+const MAIN_OR_FINDINGS_LABEL: Record<string, string> = {
+  main: 'Main',
+  findings: 'Findings',
+  workshop: 'Workshop',
+  short: 'Short paper',
+};
+
+const hasMetrics =
+  Boolean(journal?.index_type || journal?.quartile || journal?.impact_factor || journal?.ranking) ||
+  Boolean(conference?.tier || conference?.acceptance_rate || conference?.h5_index || conference?.main_or_findings) ||
+  Boolean(preprint?.venue);
+---
+
+<PublicLayout title={p.title ?? p.slug} description={filled(publication.body)?.slice(0, 160)}>
+  <a href="/publications" class="link text-sm">← Publications</a>
+
+  <div class="mt-6 flex flex-wrap items-start justify-between gap-4">
+    <h1 class="max-w-3xl text-3xl font-bold tracking-tight">{p.title ?? p.slug}</h1>
+    <div class="flex flex-wrap items-center gap-1.5">
+      {badges.map((b) => <span class:list={['badge', `badge-${b.tone}`]}>{b.label}</span>)}
+      {
+        p.status && p.status !== 'published' && (
+          <span class:list={['badge', p.status === 'accepted' ? 'badge-green' : 'badge-amber']}>
+            {STATUS_LABEL[p.status] ?? p.status}
+          </span>
+        )
+      }
+    </div>
+  </div>
+
+  {
+    authors.length > 0 && (
+      <p class="mt-3 text-lg text-gray-600 dark:text-gray-400">{authors.join(', ')}</p>
+    )
+  }
+  <p class="mt-1 text-gray-500 dark:text-gray-500">
+    {[filled(p.venue), p.year].filter(Boolean).join(', ')}
+  </p>
+
+  {
+    (arxivUrl || pdf || code) && (
+      <div class="mt-4 flex flex-wrap gap-4 text-sm">
+        {arxivUrl && <a href={arxivUrl} class="link">arXiv</a>}
+        {pdf && <a href={pdf} class="link">PDF</a>}
+        {code && <a href={code} class="link">Code</a>}
+      </div>
+    )
+  }
+
+  {
+    publication.body && (
+      <div class="mt-10 max-w-3xl border-t border-gray-200 pt-8 dark:border-gray-800">
+        <Prose body={publication.body} />
+      </div>
+    )
+  }
+
+  {
+    hasMetrics && (
+      <section class="mt-10 max-w-2xl border-t border-gray-200 pt-8 dark:border-gray-800">
+        <h2 class="mb-4 text-sm font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
+          Metrics
+        </h2>
+        <dl class="grid grid-cols-2 gap-x-8 gap-y-3 text-sm sm:grid-cols-3">
+          {journal?.index_type && journal.index_type !== 'none' && (
+            <div>
+              <dt class="text-gray-500 dark:text-gray-400">Index</dt>
+              <dd class="mt-0.5">{journal.index_type}</dd>
+            </div>
+          )}
+          {journal?.quartile && (
+            <div>
+              <dt class="text-gray-500 dark:text-gray-400">Quartile</dt>
+              <dd class="mt-0.5">{journal.quartile}</dd>
+            </div>
+          )}
+          {typeof journal?.impact_factor === 'number' && (
+            <div>
+              <dt class="text-gray-500 dark:text-gray-400">Impact Factor</dt>
+              <dd class="mt-0.5 tabular-nums">{journal.impact_factor}</dd>
+            </div>
+          )}
+          {journal?.ranking && (
+            <div>
+              <dt class="text-gray-500 dark:text-gray-400">Ranking</dt>
+              <dd class="mt-0.5">
+                {journal.ranking.category} 상위 {journal.ranking.percentile}%
+                {journal.ranking.rank && ` (${journal.ranking.rank})`}
+              </dd>
+            </div>
+          )}
+          {conference?.tier && (
+            <div>
+              <dt class="text-gray-500 dark:text-gray-400">Tier</dt>
+              <dd class="mt-0.5">{conference.tier}</dd>
+            </div>
+          )}
+          {typeof conference?.acceptance_rate === 'number' && (
+            <div>
+              <dt class="text-gray-500 dark:text-gray-400">Acceptance Rate</dt>
+              <dd class="mt-0.5 tabular-nums">{conference.acceptance_rate}%</dd>
+            </div>
+          )}
+          {typeof conference?.h5_index === 'number' && (
+            <div>
+              <dt class="text-gray-500 dark:text-gray-400">h5-index</dt>
+              <dd class="mt-0.5 tabular-nums">{conference.h5_index}</dd>
+            </div>
+          )}
+          {conference?.main_or_findings && (
+            <div>
+              <dt class="text-gray-500 dark:text-gray-400">Track</dt>
+              <dd class="mt-0.5">
+                {MAIN_OR_FINDINGS_LABEL[conference.main_or_findings] ?? conference.main_or_findings}
+              </dd>
+            </div>
+          )}
+          {preprint?.venue && (
+            <div>
+              <dt class="text-gray-500 dark:text-gray-400">Preprint venue</dt>
+              <dd class="mt-0.5">{preprint.venue}</dd>
+            </div>
+          )}
+        </dl>
+      </section>
+    )
+  }
+</PublicLayout>

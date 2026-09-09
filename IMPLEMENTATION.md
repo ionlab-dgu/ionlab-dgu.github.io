@@ -242,6 +242,7 @@ data/attendance/
 | `/research/directions`   | `research/directions/index.astro`       |
 | `/research/directions/[slug]` | `research/directions/[slug].astro` |
 | `/publications`          | `publications/index.astro`              |
+| `/publications/[slug]`   | `publications/[slug].astro`             |
 | `/publications/refs.bib` | `publications/refs.bib.ts` (엔드포인트) |
 | `/news`                  | `news/index.astro`                      |
 | `/handbook`              | `handbook/index.astro`                  |
@@ -265,8 +266,8 @@ data/attendance/
 | `/internal/one-on-ones`                            | 1:1 노트 (private 연결 시에만)                                  |
 | `/internal/handbook`                               | 공개 핸드북의 **상위집합** (내부 전용 문서 포함)                |
 
-전체 **28페이지**가 빌드됩니다(`/research/directions` 신설로 +4). 모든 페이지는 데이터가
-없어도 EmptyState로 정상 렌더됩니다.
+전체 **29페이지**가 빌드됩니다(`/research/directions` +4, `/publications/[slug]` +1).
+모든 페이지는 데이터가 없어도 EmptyState로 정상 렌더됩니다.
 
 ---
 
@@ -374,7 +375,30 @@ arxiv: '2607.00000'
 code: https://github.com/ionlab-dgu/example-efficient-gnn
 pdf:
 bibkey: hong2026budget # refs.bib의 키와 일치해야 함
+# type별 Metrics — type과 일치하는 블록만 채웁니다 (신설)
+conference:
+  tier: A* # A* | A | B | C
+  acceptance_rate: 25.8
+  main_or_findings: main # main | findings | workshop | short
+badges: [] # 수동. best_paper | oral | highlight 전용 색, 그 외는 회색
 ```
+
+`journal`(index_type, quartile, impact_factor, ranking) · `preprint`(venue) 블록도
+같은 자리에 있고 `type`에 맞는 것만 씁니다. `getPublicationBadges()`
+(`src/lib/content.ts`)가 이 값들에서 뱃지를 계산합니다:
+
+| 조건                          | 뱃지        | 톤(`.badge-*`) |
+| ----------------------------- | ----------- | -------------- |
+| `journal.quartile === 'Q1'`   | `Q1`        | blue           |
+| `conference.tier === 'A*'`    | `A*`        | blue           |
+| `journal.ranking.percentile <= 10` | `Top X%` | gold      |
+| `type === 'preprint'`         | `Preprint`  | neutral        |
+| `badges[]`의 각 값            | 그 값       | gold/blue/green(알려진 값), 그 외 neutral |
+
+`.badge-gold`는 이번에 추가한 뱃지 톤입니다 — 브랜드 골드(`brand-400`)는 대비
+때문에 배경으로만 쓰고, 텍스트는 다른 뱃지와 같은 패턴으로 `brand-700`(라이트)
+/ `brand-300`(다크)을 씁니다. `/publications/[slug].astro`(신설)가 상세 페이지이고
+Metrics 섹션을 렌더합니다.
 
 ### AttendanceEvent — `data/attendance/YYYY-MM.jsonl`
 

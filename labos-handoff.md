@@ -188,7 +188,15 @@ type: conference | journal | workshop | preprint
 status: under_review | accepted | published
 attributed_grants[], attributed_projects[]
 arxiv, code
+# type별 Metrics (선택, type과 일치하는 블록만):
+journal: {index_type, quartile, impact_factor, ranking: {category, percentile, rank}}
+conference: {tier, acceptance_rate, h5_index, main_or_findings}
+preprint: {venue}
+badges[]  # 수동. best_paper | oral | highlight 는 전용 색
 ```
+자동 뱃지: Q1 저널 → Q1(파랑), tier A* → A*(파랑), ranking.percentile ≤ 10 →
+Top X%(금색), type preprint → Preprint(회색). `getPublicationBadges()`가 계산합니다.
+학생 가이드: `content/handbook/tutorials/publication-registration.md`.
 
 ### AttendanceEvent (JSONL)
 ```yaml

@@ -1,6 +1,6 @@
 ---
 import type { Doc, Member, Publication } from '../../lib/types';
-import { displayName } from '../../lib/content';
+import { displayName, getPublicationBadges } from '../../lib/content';
 import { filled } from '../../lib/config';
 
 interface Props {
@@ -27,18 +27,30 @@ const arxivUrl = arxiv
   : undefined;
 const code = filled(p.code);
 const pdf = filled(p.pdf);
+const badges = getPublicationBadges(p);
 ---
 
 <article class="border-b border-gray-200 py-5 last:border-0 dark:border-gray-800">
   <div class="flex flex-wrap items-start justify-between gap-3">
-    <h3 class="font-medium">{p.title ?? p.slug}</h3>
-    {
-      p.status && p.status !== 'published' && (
-        <span class:list={['badge', p.status === 'accepted' ? 'badge-green' : 'badge-amber']}>
-          {STATUS_LABEL[p.status] ?? p.status}
-        </span>
-      )
-    }
+    <h3 class="font-medium">
+      <a href={`/publications/${p.slug}`} class="hover:underline">
+        {p.title ?? p.slug}
+      </a>
+    </h3>
+    <div class="flex flex-wrap items-center gap-1.5">
+      {
+        badges.map((b) => (
+          <span class:list={['badge', `badge-${b.tone}`]}>{b.label}</span>
+        ))
+      }
+      {
+        p.status && p.status !== 'published' && (
+          <span class:list={['badge', p.status === 'accepted' ? 'badge-green' : 'badge-amber']}>
+            {STATUS_LABEL[p.status] ?? p.status}
+          </span>
+        )
+      }
+    </div>
   </div>
 
   {

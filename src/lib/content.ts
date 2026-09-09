@@ -29,6 +29,7 @@ import type {
   Model,
   NewsItem,
   Publication,
+  PublicationBadge,
   ResearchDirection,
   ResearchProject,
   ResearchProjectBundle,
@@ -295,6 +296,42 @@ export function getPublications(): Doc<Publication>[] {
     if (ya !== yb) return yb - ya;
     return String(a.data?.title ?? '').localeCompare(String(b.data?.title ?? ''));
   });
+}
+
+/** 수동 badges[] 값 → 표시 라벨·톤. 등록되지 않은 값은 원문 그대로 neutral로 표시합니다. */
+const MANUAL_BADGE_STYLE: Record<string, { label: string; tone: PublicationBadge['tone'] }> = {
+  best_paper: { label: 'Best Paper', tone: 'gold' },
+  oral: { label: 'Oral', tone: 'blue' },
+  highlight: { label: 'Highlight', tone: 'green' },
+};
+
+/**
+ * 논문 카드·상세 페이지에 그릴 뱃지 목록.
+ *
+ * 자동(메트릭에서 도출, 순서 고정): Q1 저널 → conference tier A* → 상위 X% →
+ * preprint. 그 뒤에 수동 badges[]를 그대로 붙입니다 — 수동 값(Best Paper 등)이
+ * 저자가 직접 표시하고 싶어 적은 것이라 자동 계산값보다 뒤에 두되 최종적으로는
+ * 둘 다 보이게 합니다.
+ */
+export function getPublicationBadges(pub: Publication): PublicationBadge[] {
+  const badges: PublicationBadge[] = [];
+
+  if (pub.journal?.quartile === 'Q1') badges.push({ label: 'Q1', tone: 'blue' });
+  if (pub.conference?.tier === 'A*') badges.push({ label: 'A*', tone: 'blue' });
+
+  const percentile = pub.journal?.ranking?.percentile;
+  if (typeof percentile === 'number' && percentile <= 10) {
+    badges.push({ label: `Top ${percentile}%`, tone: 'gold' });
+  }
+
+  if (pub.type === 'preprint') badges.push({ label: 'Preprint', tone: 'neutral' });
+
+  for (const raw of pub.badges ?? []) {
+    const known = MANUAL_BADGE_STYLE[raw];
+    badges.push(known ?? { label: raw, tone: 'neutral' });
+  }
+
+  return badges;
 }
 
 /** 특정 과제에 귀속된 논문. 과제 리포트 자동 집계에 씁니다. */

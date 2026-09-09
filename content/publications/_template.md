@@ -18,6 +18,34 @@ arxiv: # arXiv ID 또는 URL
 code: # 코드 저장소 URL
 pdf: # PDF URL (있으면)
 bibkey: # refs.bib 의 키
+
+# ── type별 Metrics (선택) ──────────────────────────────────────
+# type과 일치하는 블록만 채우세요. 다른 블록에 값을 넣어도 상세 페이지가 무시합니다.
+# 자세한 안내: content/handbook/tutorials/publication-registration.md
+
+# type: journal 일 때만
+# journal:
+#   index_type: SCIE # SCIE | SSCI | ESCI | SCOPUS | 기타 | none
+#   quartile: # Q1 | Q2 | Q3 | Q4 (JCR 기준)
+#   impact_factor: # 숫자
+#   ranking:
+#     category: # JCR 카테고리명. 예: Computer Science, Artificial Intelligence
+#     percentile: # 카테고리 내 백분위. 작을수록 상위 (5 = 상위 5%)
+#     rank: # 선택. 예: "12/197"
+
+# type: conference | workshop 일 때만
+# conference:
+#   tier: # A* | A | B | C (CORE 등급 기준. 모르면 비워두세요)
+#   acceptance_rate: # 숫자 (%). 공식 발표치가 있을 때만
+#   h5_index: # 선택
+#   main_or_findings: # main | findings | workshop | short
+
+# type: preprint 일 때만
+# preprint:
+#   venue: # arXiv | OpenReview | 기타
+
+# 수동 뱃지. best_paper | oral | highlight 는 전용 색이 있고, 그 외 문자열도 그대로 뜹니다.
+badges: []
 ---
 
 TODO: 초록 또는 2~3문장 요약. 목록 카드와 상세 페이지에 노출됩니다.

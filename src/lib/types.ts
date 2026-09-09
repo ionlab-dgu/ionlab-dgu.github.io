@@ -144,6 +144,32 @@ export interface GrantBundle {
 export type PublicationType = 'conference' | 'journal' | 'workshop' | 'preprint';
 export type PublicationStatus = 'under_review' | 'accepted' | 'published';
 
+/** type: journal 일 때만 채웁니다. */
+export interface JournalMetrics {
+  index_type?: 'SCIE' | 'SSCI' | 'ESCI' | 'SCOPUS' | '기타' | 'none';
+  quartile?: 'Q1' | 'Q2' | 'Q3' | 'Q4' | null;
+  impact_factor?: number;
+  ranking?: {
+    category: string;
+    /** 카테고리 내 백분위. 값이 작을수록 상위 (예: 5 = 상위 5%). */
+    percentile: number;
+    rank?: string;
+  };
+}
+
+/** type: conference | workshop 일 때만 채웁니다. */
+export interface ConferenceMetrics {
+  tier?: 'A*' | 'A' | 'B' | 'C' | null;
+  acceptance_rate?: number;
+  h5_index?: number;
+  main_or_findings?: 'main' | 'findings' | 'workshop' | 'short';
+}
+
+/** type: preprint 일 때만 채웁니다. */
+export interface PreprintMetrics {
+  venue?: 'arXiv' | 'OpenReview' | '기타';
+}
+
 export interface Publication {
   slug: string;
   title?: string;
@@ -159,6 +185,21 @@ export interface Publication {
   code?: string;
   pdf?: string;
   bibkey?: string;
+  /** type: journal 일 때만. */
+  journal?: JournalMetrics;
+  /** type: conference | workshop 일 때만. */
+  conference?: ConferenceMetrics;
+  /** type: preprint 일 때만. */
+  preprint?: PreprintMetrics;
+  /** 수동 뱃지. 자유 문자열이지만 best_paper | oral | highlight 는 전용 스타일이 있습니다. */
+  badges?: string[];
+}
+
+/** getPublicationBadges() 가 반환하는 화면용 뱃지 한 개. */
+export interface PublicationBadge {
+  label: string;
+  /** src/styles/global.css 의 .badge-* 접미사. */
+  tone: 'blue' | 'gold' | 'neutral' | 'green' | 'amber' | 'red';
 }
 
 // ─── News ───────────────────────────────────────────────────
