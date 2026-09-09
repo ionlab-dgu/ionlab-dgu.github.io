@@ -76,6 +76,8 @@ export interface ResearchProject {
   grants?: string[];
   tags?: string[];
   short?: string;
+  /** content/directions/<slug>.md 의 slug. 랩의 상위 연구 방향과 연결합니다 (없어도 정상). */
+  direction?: string;
 }
 
 /** 프로젝트 폴더 전체 (index + 부속 문서 + 미팅 노트). */
@@ -86,6 +88,30 @@ export interface ResearchProjectBundle {
   datasets?: Doc<Record<string, unknown>>;
   ideas?: Doc<Record<string, unknown>>;
   meetings: Doc<MeetingNote>[];
+}
+
+// ─── Research Direction ─────────────────────────────────────
+
+/**
+ * 랩의 상위 연구 방향. content/directions/<slug>.md 단일 파일입니다.
+ *
+ * ResearchProject(학생 주도 개별 프로젝트)보다 한 단계 위의 분류로, 랩 홈·
+ * /research 페이지에서 "우리가 어떤 방향을 다루는가"를 보여주는 용도입니다.
+ * 프로젝트 쪽의 `direction` 필드로 느슨하게 연결됩니다(강제 아님).
+ */
+export type ResearchDirectionStatus = 'active' | 'emerging' | 'paused';
+
+export interface ResearchDirection {
+  slug: string;
+  /** 화면에 뜨는 순서. 낮을수록 먼저. */
+  order: number;
+  name_en: string;
+  name_ko?: string;
+  /** 카드·요약에 노출되는 한 줄 요약. */
+  short?: string;
+  description?: string;
+  topics?: string[];
+  status: ResearchDirectionStatus;
 }
 
 // ─── Grant ──────────────────────────────────────────────────

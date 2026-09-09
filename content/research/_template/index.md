@@ -16,6 +16,7 @@ start: # YYYY-MM
 grants: [] # 이 연구를 지원하는 과제 slug 목록 (없으면 빈 배열)
 tags: []
 short: # 한 줄 요약. 카드/목록에 노출됩니다.
+direction: # content/directions/<slug>.md 의 slug (선택). 아직 미분류면 비워둡니다.
 ---
 
 ## 문제

@@ -1,0 +1,52 @@
+---
+import PublicLayout from '../../../layouts/PublicLayout.astro';
+import PageHeader from '../../../components/common/PageHeader.astro';
+import Card from '../../../components/common/Card.astro';
+import EmptyState from '../../../components/common/EmptyState.astro';
+import { getResearchDirections } from '../../../lib/content';
+import { filled } from '../../../lib/config';
+
+const directions = getResearchDirections();
+---
+
+<PublicLayout
+  title="Research Directions"
+  description="ION Lab이 다루는 상위 연구 방향"
+>
+  <a href="/research" class="link text-sm">← Research</a>
+
+  <div class="mt-6">
+    <PageHeader
+      title="Research Directions"
+      description="개별 프로젝트보다 한 단계 위에서, 랩이 어떤 방향의 문제를 다루는지 보여줍니다."
+    />
+  </div>
+
+  {
+    directions.length === 0 ? (
+      <EmptyState
+        title="등록된 연구 방향이 없습니다"
+        hint="content/directions/ 에 파일을 추가하면 여기에 표시됩니다. _template.md를 복사해 시작하세요."
+      />
+    ) : (
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {directions.map((direction) => {
+          const d = direction.data;
+          const short = filled(d.short);
+          return (
+            <Card href={`/research/directions/${d.slug}`}>
+              <p class="text-brand-700 dark:text-brand-300 font-mono text-sm font-medium">
+                {String(d.order).padStart(2, '0')}
+              </p>
+              <h2 class="mt-1 text-lg font-semibold">{d.name_ko ?? d.name_en}</h2>
+              {d.name_ko && d.name_en && (
+                <p class="text-sm text-gray-500 dark:text-gray-400">{d.name_en}</p>
+              )}
+              {short && <p class="mt-3 text-sm text-gray-600 dark:text-gray-400">{short}</p>}
+            </Card>
+          );
+        })}
+      </div>
+    )
+  }
+</PublicLayout>

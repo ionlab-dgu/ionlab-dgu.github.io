@@ -239,6 +239,8 @@ data/attendance/
 | `/members/[id]`          | `members/[id].astro`                    |
 | `/research`              | `research/index.astro`                  |
 | `/research/[slug]`       | `research/[slug].astro`                 |
+| `/research/directions`   | `research/directions/index.astro`       |
+| `/research/directions/[slug]` | `research/directions/[slug].astro` |
 | `/publications`          | `publications/index.astro`              |
 | `/publications/refs.bib` | `publications/refs.bib.ts` (엔드포인트) |
 | `/news`                  | `news/index.astro`                      |
@@ -263,7 +265,8 @@ data/attendance/
 | `/internal/one-on-ones`                            | 1:1 노트 (private 연결 시에만)                                  |
 | `/internal/handbook`                               | 공개 핸드북의 **상위집합** (내부 전용 문서 포함)                |
 
-전체 **22페이지**가 빌드됩니다. 모든 페이지는 데이터가 없어도 EmptyState로 정상 렌더됩니다.
+전체 **28페이지**가 빌드됩니다(`/research/directions` 신설로 +4). 모든 페이지는 데이터가
+없어도 EmptyState로 정상 렌더됩니다.
 
 ---
 
@@ -307,7 +310,31 @@ start: 2026-03 # YYYY-MM
 grants: [example-nrf-graph-optimization]
 tags: [graph neural networks, efficient inference, sparsification]
 short: 한 줄 요약 (카드·목록에 노출)
+direction: efficient-learning-inference # content/directions/<slug>.md 의 slug (선택)
 ```
+
+### ResearchDirection — `content/directions/<slug>.md`
+
+`ResearchProject`보다 한 단계 위의 분류입니다. 폴더가 아니라 단일 파일(Publication과
+같은 형태)이고, 자주 바뀌지 않는 것을 전제로 합니다. `/research/directions`(목록)와
+`/research/directions/<slug>`(상세, `direction === slug`인 공개 프로젝트 자동 리스트)로
+노출됩니다.
+
+```yaml
+slug: efficient-learning-inference # 파일명과 동일
+order: 2 # 화면 노출 순서, 낮을수록 먼저
+name_en: Efficient Learning & Inference
+name_ko: 효율적 학습·추론 # 선택 — 없으면 name_en만 노출
+short: 대규모 AI 모델의 학습·추론 효율성 # 카드 요약
+description: 상세 페이지에 노출되는 조금 더 긴 설명
+topics: [Efficient model architectures and inference, ...]
+status: active # active | emerging | paused
+```
+
+초기 3개(`generative-ai`, `efficient-learning-inference`, `applied-ai`)는 이전에
+`config/site.yaml`의 `research_areas`(description이 전부 `TODO:`로 방치돼 있던 필드)가
+하던 역할을 대체합니다. `research_areas`는 제거했습니다 — 분류 체계가 다른 두 섹션이
+같은 `/research` 페이지에 공존하는 상태였기 때문입니다.
 
 ### Grant — `content/grants/<slug>/index.md`
 

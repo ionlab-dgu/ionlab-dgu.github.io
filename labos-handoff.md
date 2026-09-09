@@ -156,7 +156,21 @@ status: idea | active | writing | submitted | accepted | paused | archived
 lead, collaborators[], target_venue
 start: YYYY-MM
 grants[], tags[], short
+direction  # content/directions/<slug>.md 의 slug (선택)
 ```
+
+### ResearchDirection (신설)
+```yaml
+# content/directions/<slug>.md — 단일 파일, ResearchProject보다 한 단계 위 분류
+slug, order, name_en, name_ko, short, description
+topics[]
+status: active | emerging | paused
+```
+초기 3개: Generative AI / Efficient Learning & Inference / Applied AI.
+`/research/directions`(목록) · `/research/directions/<slug>`(상세, 관련 프로젝트 자동
+리스트) 로 노출. 기존 `config/site.yaml`의 `research_areas`(description 전부 TODO로
+방치돼 있던 것)를 대체했습니다 — 같은 페이지에 분류 체계가 다른 두 섹션이 공존하는
+것을 피하기 위해서입니다.
 
 ### Grant
 ```yaml

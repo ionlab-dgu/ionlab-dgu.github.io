@@ -2,12 +2,12 @@
 import PublicLayout from '../layouts/PublicLayout.astro';
 import PageHeader from '../components/common/PageHeader.astro';
 import { site, siteName, filled } from '../lib/config';
-import { getHandbookPages, publicVisible } from '../lib/content';
+import { getHandbookPages, getResearchDirections, publicVisible } from '../lib/content';
 
 const piEmail = filled(site.pi?.email);
 const labEmail = filled(site.contact?.email);
 const contactEmail = piEmail ?? labEmail;
-const areas = site.research_areas ?? [];
+const directions = getResearchDirections();
 
 const handbook = publicVisible(getHandbookPages());
 const onboarding = handbook.filter((p) => p.data.section === 'onboarding');
@@ -25,13 +25,15 @@ const policies = handbook.filter((p) => p.data.section === 'policies');
         구현으로 검증하려는 사람, 막혔을 때 빨리 묻는 사람)
       </p>
       {
-        areas.length > 0 && (
+        directions.length > 0 && (
           <>
-            <p class="mt-4 text-sm text-gray-500 dark:text-gray-400">Research topics</p>
+            <p class="mt-4 text-sm text-gray-500 dark:text-gray-400">
+              Research topics — <a href="/research/directions" class="link">자세히 보기</a>
+            </p>
             <ul class="mt-2 flex flex-wrap gap-2">
-              {areas.map((area) => (
+              {directions.map((direction) => (
                 <li class="rounded-md bg-gray-100 px-2.5 py-1 text-sm text-gray-700 dark:bg-gray-800 dark:text-gray-300">
-                  {area.title_ko ?? area.title_en}
+                  {direction.data.name_ko ?? direction.data.name_en}
                 </li>
               ))}
             </ul>

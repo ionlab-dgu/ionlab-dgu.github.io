@@ -15,6 +15,7 @@ tags:
   - efficient inference
   - sparsification
 short: 정확도 손실의 상한을 보장하면서 대규모 그래프에서 GNN 추론 비용을 줄인다.
+direction: efficient-learning-inference
 ---
 
 ## 문제

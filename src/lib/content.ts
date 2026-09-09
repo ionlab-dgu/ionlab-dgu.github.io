@@ -29,6 +29,7 @@ import type {
   Model,
   NewsItem,
   Publication,
+  ResearchDirection,
   ResearchProject,
   ResearchProjectBundle,
   Seminar,
@@ -231,6 +232,28 @@ export function getPublicResearchProjects(): ResearchProjectBundle[] {
   return getResearchProjects().filter(
     (p) => !p.index.source.private && p.index.data?.status !== 'archived',
   );
+}
+
+// ─── Research Directions ────────────────────────────────────
+
+/** content/directions/<slug>.md. order 오름차순 (같으면 slug 사전순). */
+export function getResearchDirections(): Doc<ResearchDirection>[] {
+  const docs = loadFlat<ResearchDirection>('directions', (doc, basename) => doc.data?.slug ?? basename);
+  return docs.sort((a, b) => {
+    const oa = a.data?.order ?? 999;
+    const ob = b.data?.order ?? 999;
+    if (oa !== ob) return oa - ob;
+    return String(a.data?.slug ?? '').localeCompare(String(b.data?.slug ?? ''));
+  });
+}
+
+export function getResearchDirection(slug: string): Doc<ResearchDirection> | undefined {
+  return getResearchDirections().find((d) => d.data?.slug === slug);
+}
+
+/** 특정 방향에 연결된 공개 연구 프로젝트 (project.direction === slug). */
+export function getPublicProjectsByDirection(slug: string): ResearchProjectBundle[] {
+  return getPublicResearchProjects().filter((p) => p.index.data?.direction === slug);
 }
 
 // ─── Grants ─────────────────────────────────────────────────

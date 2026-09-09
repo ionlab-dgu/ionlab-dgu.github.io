@@ -1,36 +1,44 @@
 ---
 import PublicLayout from '../../layouts/PublicLayout.astro';
 import PageHeader from '../../components/common/PageHeader.astro';
+import Card from '../../components/common/Card.astro';
 import ProjectCard from '../../components/public/ProjectCard.astro';
 import EmptyState from '../../components/common/EmptyState.astro';
-import { getPublicResearchProjects } from '../../lib/content';
+import { getPublicResearchProjects, getResearchDirections } from '../../lib/content';
 import { site, filled } from '../../lib/config';
 
 const projects = getPublicResearchProjects();
-const areas = site.research_areas ?? [];
+const directions = getResearchDirections();
 ---
 
 <PublicLayout title="Research" description="ION Lab의 연구 분야와 진행 중인 프로젝트">
   <PageHeader title="Research" description={filled(site.lab?.tagline_ko)} />
 
   {
-    areas.length > 0 && (
+    directions.length > 0 && (
       <section class="mb-12">
-        <h2 class="mb-4 text-sm font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
-          Research Areas
-        </h2>
-        <div class="grid gap-4 sm:grid-cols-2">
-          {areas.map((area) => (
-            <div class="card">
-              <h3 class="font-semibold">{area.title_ko ?? area.title_en}</h3>
-              {area.title_ko && area.title_en && (
-                <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">{area.title_en}</p>
-              )}
-              {filled(area.description) && (
-                <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">{area.description}</p>
-              )}
-            </div>
-          ))}
+        <div class="flex items-baseline justify-between">
+          <h2 class="text-sm font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">
+            Research Directions
+          </h2>
+          <a href="/research/directions" class="link text-sm">
+            전체 보기 →
+          </a>
+        </div>
+        <div class="mt-4 grid gap-4 sm:grid-cols-3">
+          {directions.map((direction) => {
+            const d = direction.data;
+            const short = filled(d.short);
+            return (
+              <Card href={`/research/directions/${d.slug}`}>
+                <p class="text-brand-700 dark:text-brand-300 font-mono text-xs font-medium">
+                  {String(d.order).padStart(2, '0')}
+                </p>
+                <h3 class="mt-1 font-semibold">{d.name_ko ?? d.name_en}</h3>
+                {short && <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">{short}</p>}
+              </Card>
+            );
+          })}
         </div>
       </section>
     )

@@ -23,12 +23,6 @@ function loadYaml<T>(filename: string, fallback: T): T {
 
 // ─── site.yaml ──────────────────────────────────────────────
 
-export interface ResearchArea {
-  title_ko?: string;
-  title_en?: string;
-  description?: string;
-}
-
 export interface SiteConfig {
   lab: {
     name_ko?: string;
@@ -52,7 +46,6 @@ export interface SiteConfig {
     hero_headline_ko?: string;
     hero_body_ko?: string;
   };
-  research_areas?: ResearchArea[];
   links: Record<string, string>;
   /** 핸드북과 동일 콘텐츠로 답하는 별도 Claude Project 링크 (외부). */
   lab_brain_url?: string;

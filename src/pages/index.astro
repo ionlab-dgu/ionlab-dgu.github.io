@@ -1,5 +1,6 @@
 ---
 import PublicLayout from '../layouts/PublicLayout.astro';
+import Card from '../components/common/Card.astro';
 import ProjectCard from '../components/public/ProjectCard.astro';
 import PublicationItem from '../components/public/PublicationItem.astro';
 import NewsItemCard from '../components/public/NewsItem.astro';
@@ -7,6 +8,7 @@ import EmptyState from '../components/common/EmptyState.astro';
 import { site, siteName, siteFullName, siteTitleWithFullName, filled } from '../lib/config';
 import {
   getPublicResearchProjects,
+  getResearchDirections,
   getPublications,
   getNews,
   getMembers,
@@ -19,6 +21,7 @@ const university = filled(site.lab?.university_ko);
 const department = filled(site.lab?.department_ko);
 
 const projects = getPublicResearchProjects().slice(0, 4);
+const directions = getResearchDirections();
 const publications = publicOnly(getPublications()).slice(0, 5);
 const news = publicOnly(getNews()).slice(0, 4);
 const members = publicOnly(getMembers());
@@ -76,6 +79,35 @@ const memberCount = members.filter((m) => m.data.role !== 'alumni').length;
       </div>
     </dl>
   </section>
+
+  {/* ── 연구 방향 ─────────────────────────────────────── */}
+  {
+    directions.length > 0 && (
+      <section class="border-b border-gray-200 py-12 dark:border-gray-800">
+        <div class="flex items-baseline justify-between">
+          <h2 class="text-2xl font-bold tracking-tight">Research Directions</h2>
+          <a href="/research/directions" class="link text-sm">
+            전체 보기 →
+          </a>
+        </div>
+        <div class="mt-6 grid gap-4 sm:grid-cols-3">
+          {directions.map((direction) => {
+            const d = direction.data;
+            const short = filled(d.short);
+            return (
+              <Card href={`/research/directions/${d.slug}`}>
+                <p class="text-brand-700 dark:text-brand-300 font-mono text-xs font-medium">
+                  {String(d.order).padStart(2, '0')}
+                </p>
+                <h3 class="mt-1 font-semibold">{d.name_ko ?? d.name_en}</h3>
+                {short && <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">{short}</p>}
+              </Card>
+            );
+          })}
+        </div>
+      </section>
+    )
+  }
 
   {/* ── 연구 ───────────────────────────────────────────── */}
   <section class="py-12">

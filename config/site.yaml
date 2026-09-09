@@ -36,20 +36,11 @@ site:
     그래프 학습과 추론, 효율적인 AI를 위한 최적화, 지능형 네트워크, 생성 모델이 주요 주제이며,
     엣지·IoT 시스템과 헬스케어 등에 적용합니다.
 
-# 홈·연구 페이지에서 쓰는 연구분야 요약.
-research_areas:
-  - title_ko: 그래프 학습과 추론
-    title_en: Graph-based Learning & Inference
-    description: 'TODO: 한두 문장 설명'
-  - title_ko: 효율적 AI를 위한 최적화
-    title_en: Optimization for Efficient AI
-    description: 'TODO: 한두 문장 설명'
-  - title_ko: 지능형 네트워크
-    title_en: Intelligent Networks
-    description: 'TODO: 한두 문장 설명'
-  - title_ko: 생성 모델
-    title_en: Generative Models
-    description: 'TODO: 한두 문장 설명'
+# 홈·연구 페이지에서 쓰는 연구 분야 요약은 더 이상 여기서 관리하지 않습니다.
+# content/directions/ (ResearchDirection) 로 옮겼습니다 — 이 카드는 description이
+# 전부 TODO인 채로 오래 방치돼 있었고, 새 Directions 페이지와 분류 체계가 달라
+# /research 에서 두 섹션이 서로 다른 말을 하는 상태였습니다.
+# 새 방향을 추가/수정하려면 content/directions/_template.md 를 보세요.
 
 # Lab Brain: 핸드북과 동일한 콘텐츠로 답하는 별도의 Claude Project.
 # 학생이 규정·정책을 즉답으로 물어볼 수 있는 링크입니다.
