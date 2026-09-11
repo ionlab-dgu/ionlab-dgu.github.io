@@ -393,8 +393,10 @@ content/lab-seminars/
   - Theory/Stats: AISTATS, UAI, COLT, ALT / Data Mining: KDD, WSDM, ICDM, CIKM
   - Robotics: ICRA, IROS, RSS, CoRL / Speech: INTERSPEECH, ICASSP
   - Multimedia: ACM MM / Web·IR: WWW, SIGIR
-  - **BMVC · EACL · SDM은 huggingface/ai-deadlines에 파일이 없어 자동 수집 대상에서
-    뺐습니다** (2026-09 확인). 투고를 고려하면 `conferences:`에 수동으로 적으세요.
+  - **BMVC · EACL · SDM · COLING은 huggingface/ai-deadlines에 파일이 없습니다**
+    (2026-09 확인). 앞의 셋은 자동 수집 대상에서 뺐고, COLING은 `tracked_venues`에
+    등록돼 있지만 같은 이유로 수집되지 않습니다 — 목록에 있는데 데이터가 안 오는
+    쪽이 더 위험합니다. 투고를 고려하면 `conferences:`에 수동으로 적으세요.
 - aideadlines에서 자동 sync
 - 표시 범위는 `display.lookahead_days`(기본 **180일**, 예전 60일에서 확장)이고,
   `display.tier_thresholds`(urgent 14 / this_month 30 / next_month 60 / future 180)로
@@ -435,6 +437,51 @@ content/lab-seminars/
   로그에 WARNING. Slack 메시지에는 안 넣습니다 — 독자에게는 무의미한 운영 정보라서.
 - **2~4주 데이터가 쌓이면** 판단: 지연이 상시적이면 외부 cron 서비스(GitHub Actions
   scheduled workflow 대신)로 옮기는 것을 고려. 산발적이면 현행 유지.
+
+### Venue 동기화 확장 (Phase 1 완료, 2026-09-11)
+
+투고 대상 pool을 **비공개 저장소에서** 확장 관리하기 시작했습니다.
+공개 저장소의 `conferences.yaml`과 주간 aideadlines 수집은 **그대로 유지**됩니다.
+
+**확정된 배치**
+
+- 데이터·스키마·스크립트 전부 `lab-os-private`. 공개 사이트 노출 zero.
+- 공개 저장소는 **읽기 전용 참조**입니다. 비공개 쪽 `sync-venues.mjs`가
+  `src/data/conferences-fetched.json` 산출물만 읽고, 공개 저장소에 아무것도 쓰지 않습니다.
+- `fetch-conferences.mjs`는 손대지 않았습니다.
+
+**통합 데이터**
+
+| | 건수 |
+| --- | --- |
+| 시드 (2026-09-09 조사) | 39 (학회 27 · 저널 12) |
+| 트래커 전용 편입 | 12 |
+| **통합본** | **51** |
+
+핸드오프 문서가 적은 "37개(26+11)"는 오기입니다. 시드 파일이 정본입니다.
+COLING은 upstream에 레코드가 없어 `url`을 채울 수 없어 편입을 보류했습니다.
+
+**핵심 규칙**
+
+- `confidence: confirmed` + `source: official-cfp`는 동기화로 **덮어쓰지 않습니다.**
+  값이 다르면 diff만 냅니다. 실제로 WWW·AAAI의 통보일에서 불일치를 찾았습니다.
+- `status`는 저장값이 아니라 **오늘 기준 계산값**입니다. 제출 계열 이벤트가
+  남았으면 `open`, 제출은 끝났고 통보·개최가 남았으면 `in-progress`, 전부
+  지났으면 `closed`입니다.
+- `raw/<날짜>.json`에 트래커 원본을 보존합니다. 직전 응답이 있어야 diff가 성립합니다.
+
+**Phase 진행**
+
+| Phase | 내용 | 상태 |
+| --- | --- | --- |
+| 1 | 데이터 통합 (대조 · 스키마 · 병합 · 동기화) | ✅ 완료 |
+| 2 | Slack 주간 다이제스트 + 임박 핑 | ⏳ 미착수 |
+| 3 | 비공개 대시보드 (카드 · 타임라인) | ⏳ 미착수 |
+
+**Phase 3 착수 전 반드시 볼 것**: 격리 검증의 사각지대.
+`verify-public-build.mjs`는 `.md`만 검사하므로 venue JSON이 검사 대상 밖입니다.
+지금은 로더가 참조하지 않아 위험이 없지만, 대시보드가 `venues.json`을 읽는
+순간부터 실제 위험이 됩니다. 대응 옵션은 `IMPLEMENTATION.md` 14절에 정리했습니다.
 
 ### 안전장치
 - Public 사이트 빌드: `PUBLIC_ONLY=1` 게이트 → lab 데이터 로드 자체 X
