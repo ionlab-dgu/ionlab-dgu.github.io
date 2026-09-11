@@ -3,7 +3,7 @@
 랩 관리 시스템 `lab-os` 아키텍처·결정사항·현황 정리 문서.
 새 Claude 세션에서 컨텍스트 로딩용, 학생 온보딩용, 결정 기록용.
 
-Last updated: 2026-09 (v3.1 — cron 오프셋 조정 반영)
+Last updated: 2026-09 (v3.2 — Venue sync Phase 1 완료 반영)
 
 ---
 
@@ -169,7 +169,7 @@ status: active | emerging | paused
 초기 3개: Generative AI / Efficient Learning & Inference / Applied AI.
 `/research/directions`(목록) · `/research/directions/<slug>`(상세, 관련 프로젝트 자동
 리스트) 로 노출. 기존 `config/site.yaml`의 `research_areas`(description 전부 TODO로
-방치돼 있던 것)를 대체했습니다 — 같은 페이지에 분류 체계가 다른 두 섹션이 공존하는
+방치돼 있던 것)를 대체했습니다. 같은 페이지에 분류 체계가 다른 두 섹션이 공존하는
 것을 피하기 위해서입니다.
 
 ### Grant
@@ -371,7 +371,7 @@ content/lab-seminars/
 
 ---
 
-## 15. 캘린더 & 컨퍼런스 데드라인 (구축 완료)
+## 15. 캘린더 & 컨퍼런스 데드라인 (Phase 1 완료)
 
 ### 접근 정책
 - 모든 랩 캘린더 = **internal only** (Phase 2 인증 후 실제 접근 제한)
@@ -379,117 +379,142 @@ content/lab-seminars/
 - 학생·PI는 GCal 앱에서 직접 subscribe해서 확인
 - 로컬 dev에서만 사이트에서 이벤트 확인 가능 (`.env`로 iCal URL 주입)
 
-### 구조
-- **Google Calendar가 primary** (편집), 사이트는 read-only
-- `config/calendars.yaml`: 캘린더 정의 (lab_official, 향후 확장 가능)
-- 로컬 dev: `.env`의 `GCAL_ICAL_LAB_GENERAL`로 이벤트 확인
-- Slack Weekly Summary: 별도 fetch 경로 (GitHub Secret `GCAL_ICAL_LAB_GENERAL`)
-  - Public 사이트 빌드와 완전 격리
+### 캘린더 원본
+- **Google Calendar가 primary**입니다. 편집은 GCal에서 하고, 사이트는 read-only입니다.
+- `config/calendars.yaml`이 캘린더를 정의합니다 (현재 lab_official, 향후 확장 가능).
 
-### 컨퍼런스 데드라인
-- `content/conferences.yaml`에 관심 venue **30개** 관리 (2026-09 16개→30개 확장):
+### 구조 (2-tier)
+
+**Tier 1: Public conferences.yaml (aideadlines auto-sync)**
+- `content/conferences.yaml`: 30개 tracked venue (aideadlines에서 자동 수집)
+- 2026-09에 16개에서 30개로 확장했습니다. 카테고리별 목록은 다음과 같습니다.
   - ML General: NeurIPS, ICML, ICLR / AI General: AAAI, IJCAI
   - Vision: CVPR, ECCV, ICCV, WACV / NLP: ACL, EMNLP, NAACL, COLING
   - Theory/Stats: AISTATS, UAI, COLT, ALT / Data Mining: KDD, WSDM, ICDM, CIKM
   - Robotics: ICRA, IROS, RSS, CoRL / Speech: INTERSPEECH, ICASSP
   - Multimedia: ACM MM / Web·IR: WWW, SIGIR
-  - **BMVC · EACL · SDM · COLING은 huggingface/ai-deadlines에 파일이 없습니다**
-    (2026-09 확인). 앞의 셋은 자동 수집 대상에서 뺐고, COLING은 `tracked_venues`에
-    등록돼 있지만 같은 이유로 수집되지 않습니다 — 목록에 있는데 데이터가 안 오는
-    쪽이 더 위험합니다. 투고를 고려하면 `conferences:`에 수동으로 적으세요.
-- aideadlines에서 자동 sync
+- 공개 사이트 `/calendar`에서 표시 (컨퍼런스 데드라인만)
+- **BMVC · EACL · SDM · COLING은 huggingface/ai-deadlines에 파일이 없습니다**
+  (2026-09 확인). 앞의 셋은 자동 수집 대상에서 뺐고, COLING은 `tracked_venues`에
+  등록돼 있지만 같은 이유로 수집되지 않습니다. 목록에 있는데 데이터가 안 들어오는
+  쪽이 더 위험하기 때문입니다. 투고를 고려한다면 `conferences:`에 수동으로 적으세요.
 - 표시 범위는 `display.lookahead_days`(기본 **180일**, 예전 60일에서 확장)이고,
   `display.tier_thresholds`(urgent 14 / this_month 30 / next_month 60 / future 180)로
   Slack 요약·`/internal/calendar`가 마감을 묶어 보여줍니다. D-30 이내는 여전히
-  `/calendar`(공개)·`/internal/deadlines`의 강조 기준(`IMMINENT_DAYS`)입니다 — 별개 값.
+  `/calendar`(공개)·`/internal/deadlines`의 강조 기준(`IMMINENT_DAYS`)이며,
+  이는 별개의 값입니다.
+
+**Tier 2: Private venues.json (풍부한 metadata)**
+- `lab-os-private/content/venues/venues.json`: 51건 통합본
+  - 시드 39건 (conference 27 + journal 12)
+  - 기존 전용 12건 (aideadlines에만 있고 시드에 없음, tracker/estimated로 편입)
+- 각 venue: id, name, track, kind, label, scope, pageLimit, 
+  cycle, timezone, confidence, source, events[], notes 등
+- Confidence 규칙: confirmed + official-cfp 항목은 자동 덮어쓰기 금지
+- Events 배열: registration, abstract, paper, notification, rebuttal, 
+  cameraReady, conference 등 세분화 (13가지 type)
+
+### Venue Phase 1 확정 사항 (2026-09-11)
+
+투고 대상 pool을 **비공개 저장소에서** 확장 관리하기 시작했습니다.
+공개 저장소의 `conferences.yaml`과 주간 aideadlines 수집은 **그대로 유지**됩니다.
+
+- 데이터·스키마·스크립트를 전부 `lab-os-private`에 두었습니다. 공개 사이트 노출은 없습니다.
+- 공개 저장소는 **읽기 전용 참조**입니다. 비공개 쪽 `sync-venues.mjs`가
+  `src/data/conferences-fetched.json` 산출물만 읽고, 공개 저장소에는 아무것도 쓰지 않습니다.
+- `fetch-conferences.mjs`는 손대지 않았습니다.
+
+| 통합 데이터 | 건수 |
+| --- | --- |
+| 시드 (2026-09-09 조사) | 39 (학회 27 · 저널 12) |
+| 트래커 전용 편입 | 12 |
+| **통합본** | **51** |
+
+이 문서의 예전 판이 적어 둔 "37개(26+11)"는 오기입니다. 시드 파일이 정본입니다.
+COLING은 upstream에 레코드가 없어 `url`을 채울 수 없었기 때문에 편입을 보류했습니다.
+
+**핵심 규칙**
+
+- `confidence: confirmed` + `source: official-cfp`인 항목은 동기화로 **덮어쓰지 않습니다.**
+  값이 다르면 diff만 냅니다. 실제로 WWW·AAAI의 통보일에서 불일치를 찾아냈습니다.
+- `status`는 저장된 값이 아니라 **오늘을 기준으로 계산한 값**입니다. 제출 계열 이벤트가
+  남아 있으면 `open`, 제출은 끝났고 통보·개최가 남았으면 `in-progress`, 전부
+  지났으면 `closed`입니다.
+- `raw/<날짜>.json`에 트래커 원본을 보존합니다. 직전 응답이 남아 있어야 diff가 성립합니다.
+
+**Phase 3 착수 전에 반드시 볼 것**: 격리 검증의 사각지대.
+`verify-public-build.mjs`는 `.md`만 검사하므로 venue JSON이 검사 대상 밖에 있습니다.
+지금은 로더가 참조하지 않아 위험이 없지만, 대시보드가 `venues.json`을 읽는
+순간부터 실제 위험이 됩니다. 대응 옵션은 `IMPLEMENTATION.md` 14절에 정리해 두었습니다.
 
 ### Workshop (신설, 수동 관리)
-- `content/workshops.yaml`의 `workshops[]` — 학회와 달리 **자동 수집하지 않습니다**
-  (huggingface/ai-deadlines에 워크숍 개별 항목이 잘 없고, 메인 학회 프로그램 확정
-  후에야 워크숍 CFP가 뜨는 경우가 많아 자동화 비용 대비 실익이 낮음). 학기 초에
-  한 번 훑어보고 채우는 저유지보수 방식.
+- `content/workshops.yaml`의 `workshops[]`로 관리하며, 학회와 달리 **자동으로 수집하지
+  않습니다**. huggingface/ai-deadlines에 워크숍 개별 항목이 잘 없고, 메인 학회 프로그램이
+  확정된 후에야 워크숍 CFP가 뜨는 경우가 많아서 자동화 비용 대비 실익이 낮기 때문입니다.
+  학기 초에 한 번 훑어보고 채우는 저유지보수 방식입니다.
 - `src/lib/deadlines.ts`의 `getWorkshops()` / `getUpcomingWorkshops()`가 읽습니다.
-  파일이 없거나 비어 있으면 빈 배열 — 정상 상태입니다.
-- `/internal/calendar`에 별도 섹션(비어 있으면 EmptyState), Slack 요약에도 섹션
-  (비어 있으면 **섹션 자체를 생략** — 사이트의 EmptyState 관례와 다르게 한 것은,
-  Slack은 매주 오는 push라 빈 섹션이 반복되면 그 자체가 소음이기 때문).
-- 아직 비어 있음 — `content/handbook/tutorials/calendar-setup.md` §4 참고해 PI가 채워야 함.
+  파일이 없거나 비어 있으면 빈 배열을 반환하며, 이는 정상 상태입니다.
+- `/internal/calendar`에 별도 섹션으로 두었고(비어 있으면 EmptyState), Slack 요약에도
+  섹션이 있습니다. 다만 Slack에서는 비어 있으면 **섹션 자체를 생략**합니다. 사이트의
+  EmptyState 관례와 다르게 한 것은, Slack은 매주 오는 push라서 빈 섹션이 반복되면
+  그 자체가 소음이 되기 때문입니다.
+- 아직 비어 있습니다. `content/handbook/tutorials/calendar-setup.md` §4를 참고해 PI가
+  채워야 합니다.
 
-### 자동화 (라이브)
-- **Sync Conference Deadlines**: 매주 월 09:23 KST 자동 실행
-- **Weekly Summary (Slack)**: 매주 월 09:37 KST + 수 09:23 KST 자동 발송
-  - 랩 이벤트 (GCAL_ICAL_LAB_GENERAL) + 컨퍼런스 데드라인 포함
+### Slack 알림 (Phase 1 자동화)
+- **Sync Conference Deadlines**: 매주 월 09:23 KST 자동
+- **Weekly Summary (Slack)**: 매주 월 09:37 KST + 수 09:23 KST 자동
+  - 랩 이벤트 (GCAL_ICAL_LAB_GENERAL) + 컨퍼런스 데드라인 (30개)
   - 랩 내부 채널로만 발송
-  - 학회 마감은 티어별(긴급/이번 달/다음 달/그 이후)로 묶고, 티어당 5건 넘으면
-    "그 외 N개는 사이트 참조"로 접습니다 (venue 30개로 늘어난 뒤 필요해진 처리)
+  - 학회 마감은 티어별(긴급/이번 달/다음 달/그 이후)로 묶고, 티어당 5건이 넘으면
+    "그 외 N개는 사이트 참조"로 접습니다 (venue를 30개로 늘린 뒤 필요해진 처리)
 - 두 workflow 모두 `workflow_dispatch`로 수동 실행 지원
 - **⚠️ Cron 오프셋 주의**: 정각(:00) 및 흔한 분(:15, :30)은 GitHub 부하 관리로 
   skip 리스크. 비관행 분(:23, :37 등) 사용 관례.
 
 ### 예약 실행 지연 관찰 (2026-09-10 시작)
 - 첫 예약 실행(2026-09-07 00:00 UTC)은 통째로 **skip**됐고(위 cron 오프셋 조정의
-  원인), 그 다음 2026-09-09 실행은 skip은 안 됐지만 예정(09:23 KST)보다
-  **4시간29분 늦게**(13:52 KST) 트리거됐습니다. 실행 기록으로 실측 확인함
+  원인), 그 다음 2026-09-09 실행은 skip되지는 않았지만 예정(09:23 KST)보다
+  **4시간 29분 늦게**(13:52 KST) 트리거됐습니다. 실행 기록으로 실측해 확인했습니다
   (`createdAt: 2026-09-09T04:52:33Z`, cron 예정 `00:23Z`).
-- 이 한 건만으로는 판단할 수 없어서, `weekly-summary.yml`이 매 실행마다 예정 vs
-  실제 트리거 시각·지연분을 Actions 로그에 남기도록 계측했습니다
-  (`scripts/weekly-slack-summary.mjs`의 `logRunTiming()`). 15분 초과 지연이면
-  로그에 WARNING. Slack 메시지에는 안 넣습니다 — 독자에게는 무의미한 운영 정보라서.
-- **2~4주 데이터가 쌓이면** 판단: 지연이 상시적이면 외부 cron 서비스(GitHub Actions
-  scheduled workflow 대신)로 옮기는 것을 고려. 산발적이면 현행 유지.
+- 이 한 건만으로는 판단할 수 없어서, `weekly-summary.yml`이 매 실행마다 예정 시각과
+  실제 트리거 시각·지연 분을 Actions 로그에 남기도록 계측했습니다
+  (`scripts/weekly-slack-summary.mjs`의 `logRunTiming()`). 15분을 넘는 지연이면
+  로그에 WARNING을 남깁니다. Slack 메시지에는 넣지 않습니다. 독자에게는 무의미한
+  운영 정보이기 때문입니다.
+- **2~4주 동안 데이터가 쌓이면** 판단합니다. 지연이 상시적이면 GitHub Actions의
+  scheduled workflow 대신 외부 cron 서비스로 옮기는 것을 고려하고, 산발적이면
+  현행을 유지합니다.
 
-### Venue 동기화 확장 (Phase 1 완료, 2026-09-11)
-
-투고 대상 pool을 **비공개 저장소에서** 확장 관리하기 시작했습니다.
-공개 저장소의 `conferences.yaml`과 주간 aideadlines 수집은 **그대로 유지**됩니다.
-
-**확정된 배치**
-
-- 데이터·스키마·스크립트 전부 `lab-os-private`. 공개 사이트 노출 zero.
-- 공개 저장소는 **읽기 전용 참조**입니다. 비공개 쪽 `sync-venues.mjs`가
-  `src/data/conferences-fetched.json` 산출물만 읽고, 공개 저장소에 아무것도 쓰지 않습니다.
-- `fetch-conferences.mjs`는 손대지 않았습니다.
-
-**통합 데이터**
-
-| | 건수 |
-| --- | --- |
-| 시드 (2026-09-09 조사) | 39 (학회 27 · 저널 12) |
-| 트래커 전용 편입 | 12 |
-| **통합본** | **51** |
-
-핸드오프 문서가 적은 "37개(26+11)"는 오기입니다. 시드 파일이 정본입니다.
-COLING은 upstream에 레코드가 없어 `url`을 채울 수 없어 편입을 보류했습니다.
-
-**핵심 규칙**
-
-- `confidence: confirmed` + `source: official-cfp`는 동기화로 **덮어쓰지 않습니다.**
-  값이 다르면 diff만 냅니다. 실제로 WWW·AAAI의 통보일에서 불일치를 찾았습니다.
-- `status`는 저장값이 아니라 **오늘 기준 계산값**입니다. 제출 계열 이벤트가
-  남았으면 `open`, 제출은 끝났고 통보·개최가 남았으면 `in-progress`, 전부
-  지났으면 `closed`입니다.
-- `raw/<날짜>.json`에 트래커 원본을 보존합니다. 직전 응답이 있어야 diff가 성립합니다.
-
-**Phase 진행**
-
-| Phase | 내용 | 상태 |
-| --- | --- | --- |
-| 1 | 데이터 통합 (대조 · 스키마 · 병합 · 동기화) | ✅ 완료 |
-| 2 | Slack 주간 다이제스트 + 임박 핑 | ⏳ 미착수 |
-| 3 | 비공개 대시보드 (카드 · 타임라인) | ⏳ 미착수 |
-
-**Phase 3 착수 전 반드시 볼 것**: 격리 검증의 사각지대.
-`verify-public-build.mjs`는 `.md`만 검사하므로 venue JSON이 검사 대상 밖입니다.
-지금은 로더가 참조하지 않아 위험이 없지만, 대시보드가 `venues.json`을 읽는
-순간부터 실제 위험이 됩니다. 대응 옵션은 `IMPLEMENTATION.md` 14절에 정리했습니다.
+### Local dev
+- **로컬 dev**: `.env`의 `GCAL_ICAL_LAB_GENERAL`로 이벤트 확인
+- Slack Weekly Summary: 별도 fetch 경로 (GitHub Secret `GCAL_ICAL_LAB_GENERAL`)
+  - Public 사이트 빌드와 완전 격리
 
 ### 안전장치
 - Public 사이트 빌드: `PUBLIC_ONLY=1` 게이트 → lab 데이터 로드 자체 X
 - Slack fetch 경로: 사이트 빌드와 완전 격리 (secret은 workflow에서만 참조)
-- gcal.ts: TZID 오프셋 정확 처리 + RRULE 전개 지원 (60일 window — 이건 GCal 반복
-  일정 전개 범위 `config/calendars.yaml`의 `expand_days`이고, 학회 마감의
-  `lookahead_days`와는 다른 값입니다. 헷갈리기 쉬워 명시해 둡니다)
+- gcal.ts: TZID 오프셋 정확 처리 + RRULE 전개 지원 (60일 window). 이 60일은 GCal
+  반복 일정의 전개 범위인 `config/calendars.yaml`의 `expand_days`이고, 학회 마감의
+  `lookahead_days`와는 다른 값입니다. 헷갈리기 쉬워서 명시해 둡니다.
 - UI 문구: "연결 안 됨"과 "일정 없음" 구분해서 오해 방지
+- **격리 검증 사각지대 인지됨** (IMPLEMENTATION.md 참조):
+  - verify-public-build.mjs는 .md만 검사, JSON은 사각지대
+  - Phase 3 대시보드 착수 전 반드시 검사기 확장 필요
+
+### Phase 2 예정 (다음 세션 이후)
+- Slack 알림 확장 (venues.json 51건 반영)
+- 임박 핑 (D-14/7/1, estimated 제외)
+- 설정 파일 (channel, tracks, thresholds)
+- 확정 필요:
+  - Slack 채널 (Weekly Summary 채널 병합 vs 신설)
+  - 알림 스코프 (51개 전체 vs 랩 방향 매핑 트랙만)
+
+### Phase 3 예정 (Phase 2 후)
+- `/internal/venues/` 카드 뷰
+- 타임라인 뷰
+- 필터 URL 동기화
+- 트랙 색상 반영 (핸드오프 §7)
 
 ---
 
@@ -571,6 +596,14 @@ Claude Project 공유는 Team/Enterprise 플랜에서만 가능. 검토 중인 �
 - [x] Public 사이트 유출 검증 (6개 페이지, lab 데이터 0건)
 - [x] UI 문구 개선 ("연결 안 됨" vs "일정 없음" 구분)
 - [x] Cron 오프셋 조정 (정각 skip 이슈 대응)
+- [x] **Venue sync Phase 1** (2026-09-11):
+  - Private venues.json 51건 통합본 (시드 39 + 편입 12)
+  - Zod 스키마 + 검증기 (경고 24건 = 편입 12건의 미충족 필드)
+  - Sync 스크립트 (estimated만 갱신, confirmed 보호)
+  - Aideadlines raw 스냅샷 보존
+  - 카나리 17종 통과 (스키마 12 + sync 5)
+  - 격리 첫 층 (publicOnly) 작동 실측 검증
+  - IMPLEMENTATION.md에 원칙·사례 축적
 
 **Lab Brain**
 - [x] Lab Brain Claude Project 구축·테스트
@@ -580,6 +613,16 @@ Claude Project 공유는 Team/Enterprise 플랜에서만 가능. 검토 중인 �
 
 ## 20. 남은 작은 TODO
 
+**Phase 1 완료 후 (2026-09-11)**
+- [ ] Venue 편입 12건의 pageLimit·scope 채우기 (경고 24건 해소)
+- [ ] BMVC/EACL/SDM/COLING 처리 방향 결정
+  - 옵션 A: 랩 투고 계획 확인 후 수동 tracking
+  - 옵션 B: aideadlines upstream 기여 (PR 제출)
+  - 옵션 C: 편입 보류 유지 (현재 상태)
+- [ ] 격리 검증 사각지대 대응 (Phase 3 착수 전 필수)
+  - JSON 파일 검사 확장 or private 별도 검사기 or 카나리 자동화
+
+**기존**
 - [ ] `content/handbook/tutorials/calendar-setup.md`의 TODO(PI) 2곳 채우기
   - 구독 URL (아래 §15 안내 값)
   - Slack 채널명 (Weekly Summary가 발송되는 채널)
@@ -603,16 +646,27 @@ Claude Project 공유는 Team/Enterprise 플랜에서만 가능. 검토 중인 �
 - [x] Handbook 3 policies 초안
 - [x] Research plan / Lab seminar 인프라
 - [x] 캘린더 인프라 + 자동 sync + Slack 요약
+- [x] **Venue sync Phase 1** (Private venues.json 51건 통합)
 - [ ] 학기 시작 시 학생 공지 (2026 가을)
 
-**Phase 2 (4~6주 후)**: Internal dashboard + 인증
+**Phase 2 (4~6주 후)**: Slack 알림 확장 + Internal dashboard 시작
+- **Venue Slack 확장** (Phase 1 후속):
+  - 주간 다이제스트에 venues.json 51건 반영
+  - 임박 핑 (D-14/7/1, estimated 제외)
+  - 설정 파일 (channel, tracks, thresholds)
 - GitHub OAuth 인증 (본격 도입)
 - 출결 체크인 UI 실작동
 - **GCal 실제 렌더링** (`/internal/calendar`에 실제 이벤트 표시)
 - **1:1 아젠다·이력 트래킹 시스템**
 - **PI 전용 인건비 현황 대시보드** (admin-only, lab-os-private)
 
-**Phase 3 (이후)**: Claude 통합·심화 자동화
+**Phase 3 (이후)**: Claude 통합·심화 자동화 + Venue 대시보드
+- **Venue 대시보드** (Phase 2 후속):
+  - `/internal/venues/` 카드 뷰
+  - 타임라인 뷰
+  - 필터 URL 동기화
+  - 트랙 색상 반영
+  - ⚠️ 착수 전 격리 검증 사각지대 대응 필수
 - arXiv 다이제스트
 - 논문 게재 시 자동 sync
 - 주간 랩 리포트
@@ -628,11 +682,12 @@ Claude Project 공유는 Team/Enterprise 플랜에서만 가능. 검토 중인 �
    - 데이터 후보: 학생별 grant 참여율, 월별 인건비 지급, 잔여 예산, BK21 계약 등
    - Phase 2 (인증) 붙인 후 실제 구현
 1. **wandb 도입 계획** (Phase B 재개, Research Plan 이후)
-2. Lab Brain 학생 접근 결정 (Notion 검토, DIY 등)
-3. Publications 카드 UI 실험
-4. ION Lab 로고 제작
-5. Handbook 나머지 (온보딩, 튜토리얼)
-6. 콘텐츠 채우기 (Cowork 모드)
+2. **Venue Slack 확장** (Phase 1 완료로 준비됨)
+3. Lab Brain 학생 접근 결정 (Notion 검토, DIY 등)
+4. Publications 카드 UI 실험
+5. ION Lab 로고 제작
+6. Handbook 나머지 (온보딩, 튜토리얼)
+7. 콘텐츠 채우기 (Cowork 모드)
 
 ---
 
