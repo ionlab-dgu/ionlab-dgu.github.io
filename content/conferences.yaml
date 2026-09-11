@@ -53,8 +53,10 @@ tracked_venues:
   - name: WACV
     source: wacv
     category: vision
-  # BMVC 는 huggingface/ai-deadlines 에 파일이 없어(2026-09 확인) 자동 수집 대상에서
-  # 뺐습니다. 투고를 고려하면 아래 3. conferences 에 수동으로 날짜를 적으세요.
+  # BMVC · EACL · SDM 은 huggingface/ai-deadlines 에 파일이 없어(2026-09 확인)
+  # 자동 수집 대상에서 뺐습니다. 투고를 고려하면 아래 3. conferences 에 수동으로
+  # 날짜를 적으세요. COLING 은 아래 NLP 항목에 등록돼 있지만 같은 이유로 수집되지
+  # 않습니다 — 목록에 있는데 데이터가 안 오는 쪽이 더 위험합니다.
 
   # NLP
   - name: ACL
@@ -66,6 +68,10 @@ tracked_venues:
   - name: NAACL
     source: naacl
     category: nlp
+  # ⚠️ COLING 은 목록에 있지만 upstream 에 파일이 없어 수집되지 않습니다
+  #    (2026-09-11 확인: fetched.json 에 레코드 0건). 추적 중이라고 착각하기 쉬우니
+  #    투고를 고려한다면 아래 3. conferences 에 손으로 적으세요.
+  #    BMVC·EACL·SDM 도 같은 상태입니다. IMPLEMENTATION.md 13절 참고.
   - name: COLING
     source: coling
     category: nlp
