@@ -3,7 +3,7 @@
 랩 관리 시스템 `lab-os` 아키텍처·결정사항·현황 정리 문서.
 새 Claude 세션에서 컨텍스트 로딩용, 학생 온보딩용, 결정 기록용.
 
-Last updated: 2026-09 (v3.2 — Venue sync Phase 1 완료 반영)
+Last updated: 2026-09 (v3.3 — Progress Tracking 통합 반영)
 
 ---
 
@@ -228,7 +228,8 @@ visibility: private
 | **연구 1:1** | 매주 | 60분 | 각자 협의 | Progress·PI 지도, 아젠다 미리 공유 | ✓ 확정 |
 | **Personal 1-on-1** | 월 1회 | 30분 | 각자 협의 | 사람 중심 (진로·웰빙·피드백) | ✓ 확정 |
 | **월요일 스탠드업** | - | - | - | - | 보류 |
-| **Slack #daily-log** | - | - | - | (async) | 미결정 |
+| **Slack #proj-*-log** | 실시간 | - | - | 프로젝트별 진행 상황 채널 (Progress Tracking Tier 1) | ✓ 확정 (Phase A) |
+| **Weekly Progress Note** | 매주 금 | 15분 | - | 학생 자기 회고 (Tier 2, Claude Code) | ✓ 확정 (Phase A) |
 
 ### 랩 세미나
 - **요일·시간**: 매주 수요일 15:00 (기존 화 16:00에서 변경)
@@ -280,23 +281,27 @@ visibility: private
 
 ---
 
-## 11. Research Plan 시스템
+## 11. Research Plan + Progress Tracking 시스템
 
-### 도입
+Research Plan (분기·학기 단위 목표) 위에 **일상 tracking (주간·실험 단위)** 층을 통합. 2026-09-11 다른 채널 논의 결과 반영.
+
+### Research Plan (분기·학기 단위)
+
+**도입**
 - **2026 가을 학기부터 전원** (신입 + 기존 학생 모두)
 - **첫 작성 시점**: 다음 주 (학기 시작 첫 주)
 
-### 위치
+**위치**
 - `lab-os-private/research-plans/[student-slug]/[semester].md`
 - 예: `lab-os-private/research-plans/hjkim/2026-fall.md`
 
-### 프로세스
+**프로세스**
 - **학기 시작 첫 주**: 학생 초안 작성
 - **학기 초 30분 PI 리뷰**: 승인 or 조정
 - **중간 리뷰** (약 6주 후, 10월 중순): milestone 점검
 - **학기말 회고 + 다음 학기 초안**
 
-### 템플릿 구성
+**템플릿 구성**
 - North Star (한 문장)
 - 진행 중 프로젝트 (참여도 %)
 - Milestones (M1~M4, 2~4주 단위)
@@ -305,14 +310,84 @@ visibility: private
 - PI 지원 요청
 - 리뷰 로그
 
-### 가이드
+**가이드**
 - `content/handbook/tutorials/research-plan-guide.md` (public)
 - 학생용 가이드: 왜 쓰나, 좋은 예/나쁜 예, 흔한 실수
 
+### Progress Tracking (일상 층, 3-tier 하이브리드)
+
+**Tier 1: 실시간 Slack #proj-<slug>-log**
+- 채널 하나 = 프로젝트 하나
+- 마찰 zero — 실험 결과 스크린샷, 아이디어, 막힌 것 실시간 공유
+- PI·랩 전체 볼 수 있음 (자연스러운 학습 촉진)
+- 저장소에 커밋 X (신호 layer)
+
+**Tier 2: 주간 Progress Note**
+- 위치: `lab-os-private/research-plans/[student-slug]/progress/YYYY-Wnn.md`
+- 학생이 매주 금요일 15분 작성 (5분 회고 + Claude Code 재구성)
+- 구조 (~200~300 단어):
+  - This week: 실제 한 것 (Slack log 반영)
+  - Blocked: 막힌 것
+  - Next week: 계획
+  - Kill criteria check: Plan 위험 요소 상태
+- 도구: **Claude Code** (터미널 마찰 최소화)
+- Format 강제 없음 — 학생 자율
+
+**Tier 3: 학기말 Retrospective**
+- Research Plan에 회고 섹션 추가
+- 학기 종료 시 학생 작성
+- PI와 30분 리뷰
+
+### Aichaku 마인드셋
+
+**핵심 원칙**: 문제가 없는 것이 진짜 문제. Progress note에 "잘 되고 있음, 특이사항 없음"만 반복되면 위험 신호.
+
+**Weekly note의 핵심 4항목**:
+1. Kill criteria 상태 (위험 요소가 실제로 발생했나?)
+2. Ideal → Actual gap (계획 대비 실제)
+3. Bottleneck (진짜 병목은?)
+4. What I want to learn (다음 주 배우고 싶은 것)
+
+### Slack 통합 자동화
+
+- `content/research/[slug]/index.md` frontmatter에 `slack_channel: "#proj-<slug>-log"` 추가
+- Weekly Slack Summary가 프로젝트 링크 옆에 채널 태그 표시
+- Progress note 커밋 시 해당 Slack 채널에 자동 알림 (선택, Phase 3)
+
+### 대시보드 (Phase 2)
+
+**Progress Log 페이지**: `/internal/research/[slug]/progress/`
+- 학기별 주간 note 리스트
+- Kill criteria 상태 시각화 (green/yellow/red)
+- 최근 4주 요약
+- Ideal vs Actual gap 트렌드
+
 ### 원칙
-- **Private 저장** (kill criteria 정직하게 쓰기 위해)
+- **Private 저장** (kill criteria·솔직한 어려움 정직하게 쓰기 위해)
 - 학생 자율성 존중 (강요 X, 지원 O)
 - 완벽한 계획 강요 X — 방향 재조정 자연스러움
+- **감시 방지**: 통계·랭킹·리더보드 X, alert-based 접근
+- **PI 오버헤드 관리**: 
+  - 매주 확인 부담 X (자동 요약 활용 예정)
+  - 위험 신호만 알림 (kill criteria 트리거, gap 3주 연속 등)
+  - Weekly note는 학생 자기 회고용, PI 리뷰는 1:1 미팅에서
+
+### 도구·구현 (Phase A 착수 예정)
+
+**Phase A (2주 파일럿, 학기 시작 시)**
+- 학생 2~3명 자원자
+- Weekly note 시작
+- Slack #proj-* 채널 신설
+- Claude Code 사용법 30분 세션
+
+**Phase B (파일럿 후 조정)**
+- 형식·주기·도구 학생 피드백 반영
+- 전체 학생 확대
+
+**Phase C (Phase 2 후)**
+- Progress log 사이트 대시보드
+- 자동 요약 (Claude API)
+- Alert 시스템
 
 ---
 
@@ -613,6 +688,15 @@ Claude Project 공유는 Team/Enterprise 플랜에서만 가능. 검토 중인 �
 
 ## 20. 남은 작은 TODO
 
+**Progress Tracking Phase A (학기 시작 시)**
+- [ ] Claude Code 인프라 구축 (다른 채널 논의 결과 반영):
+  - Weekly progress note 스캐폴드 (`scripts/new-progress-note.mjs`)
+  - Slack #proj-*-log 채널 매핑 (frontmatter에 `slack_channel` 필드)
+  - Progress note 템플릿·가이드 (handbook에)
+  - Claude Code 사용법 학생 세션 (30분)
+- [ ] 학생 2~3명 자원자 파일럿 시작
+- [ ] Slack #proj-*-log 채널 신설 (프로젝트별)
+
 **Phase 1 완료 후 (2026-09-11)**
 - [ ] Venue 편입 12건의 pageLimit·scope 채우기 (경고 24건 해소)
 - [ ] BMVC/EACL/SDM/COLING 처리 방향 결정
@@ -631,11 +715,16 @@ Claude Project 공유는 Team/Enterprise 플랜에서만 가능. 검토 중인 �
   - lab_official만 있어도 실용상 OK
 - [ ] 학생 대상 공지 (2026 가을 학기 시작 시):
   - Research Plan 첫 작성 안내
+  - **Progress Tracking Phase A 도입 안내** (파일럿)
   - 랩 세미나 시간·형식 변경 안내 (수 15:00)
   - Personal 1-on-1 도입 안내
 - [ ] Third-party actions v5 릴리스 시 workflow 업데이트
   - actions/checkout@v4 → @v5 등
   - Node 20 deprecation 대응
+- [ ] Drive 사본 동기화 자동화 검토 (post-merge GitHub Actions)
+  - v3.2·v3.3 두 번 연속으로 Drive 사본이 구판 기반이어서 수동 병합이 필요했습니다.
+    Chat 세션이 편집하는 Project knowledge가 저장소 상태보다 뒤처지는 것이 원인입니다.
+  - 당장은 버전을 올릴 때마다 저장소에서 Drive로 덮어쓰는 수동 규칙으로 대응합니다.
 
 ---
 
@@ -695,7 +784,6 @@ Claude Project 공유는 Team/Enterprise 플랜에서만 가능. 검토 중인 �
 
 - **Lab Brain 학생 접근 방식** — Notion·DIY·다른 옵션 검토
 - **wandb 도입 시점·컨벤션** (다음 세션)
-- **Slack #daily-log 도입 여부**
 - **랩 세미나 심화 개편** — 30/20 분리, 지정 discussant 등 (일단 최소 개편만)
 - **Slack slash command (`/lab-calendar`)** — 실사용 패턴 관찰 후 결정
   - 자동화 + 북마크로 대부분 커버, 지금 셋업 오버헤드 비추
