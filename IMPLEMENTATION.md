@@ -832,6 +832,25 @@ private 저장소에 로더가 읽는 콘텐츠가 하나도 없기 때문입니
 경계가 바뀌는 지점은 **사이트가 읽기 시작할 때**이지 Slack이 읽기 시작할 때가
 아닙니다. 이 구분을 잃으면 불필요한 검사기를 미리 만들게 됩니다.
 
+**2026-10-01: Personnel YAML도 같은 사각지대에 추가됐습니다**
+
+인건비 대시보드 Phase 1(lab-os-private #3)이 `.private/content/personnel/<학기>.yaml`을
+도입했습니다. `verify-public-build.mjs`는 `.md`만 대조하므로 YAML · JSON은 검사 밖입니다.
+
+- 지금은 어떤 로더도 이 폴더를 읽지 않습니다. 2026-10-01에 private을 포함해
+  빌드한 뒤 personnel 표식(`example-student-slug` · `monthly_stipend` ·
+  `grants_personnel` 등)을 `dist/`에서 찾아 **0건**임을 확인했습니다.
+  `PUBLIC_ONLY=1` 빌드도 `verify:public` 4/4 통과.
+- **Phase 2 대시보드(`/internal/admin/personnel`) 착수 전에 반드시 검사기를
+  확장해야 합니다.** venue와 personnel이 동시 대응 대상이고, 위 X · Y · Z 중
+  하나를 고를 때 두 데이터를 함께 놓고 판단합니다.
+- **별도 노출 경로 — CI 체크아웃.** `weekly-summary.yml`이 `venues.json` 하나를
+  읽으려고 private 저장소 **전체**를 `.private/`로 체크아웃합니다. 따라서 인건비
+  파일도 매주 이 공개 저장소의 Actions 러너에 올라갑니다. 지금은 출력하지 않아
+  유출이 없지만, 공개 저장소의 Actions 로그는 공개이므로 디버그 출력 한 줄이면
+  금액이 드러납니다. `sparse-checkout: content/venues`로 좁히면 없어지는 노출이며,
+  `dist/` 대조로는 잡히지 않는 경로라 검사기 확장과 별개로 판단해야 합니다.
+
 ---
 
 ## 15. Slack 주간 요약 확장 (Phase 2 첫 단계, 2026-10-01)
