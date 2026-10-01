@@ -281,8 +281,12 @@ function fromRecord(c, category, origin) {
 /**
  * 세 소스를 합쳐 정규화된 venue 목록을 만듭니다.
  * 같은 계열·같은 회차면 우선순위가 높은 쪽(= 나중에 넣은 쪽)이 이깁니다.
+ *
+ * 병합 결과만 돌려주면 Gap 감지가 "private 에 레코드가 있었는가"를 알 수
+ * 없습니다 (private 이 이긴 경우와 애초에 없던 경우가 구별되지 않습니다).
+ * 그래서 원본 목록도 함께 넘깁니다.
  */
-function collectVenues() {
+function collectSources() {
   const manual = readYaml(path.join(CONTENT, 'conferences.yaml'));
   const fetched = readJson(path.join(ROOT, 'src', 'data', 'conferences-fetched.json'));
 
@@ -306,13 +310,17 @@ function collectVenues() {
   }
 
   const privatePath = resolvePrivateVenuesPath();
+  const privateVenues = [];
   if (privatePath) {
-    const venues = readJson(privatePath).venues ?? [];
-    for (const v of venues) {
-      if (v?.id && v?.name) put(fromPrivateVenue(v));
+    const raw = readJson(privatePath).venues ?? [];
+    for (const v of raw) {
+      if (!v?.id || !v?.name) continue;
+      const normalized = fromPrivateVenue(v);
+      privateVenues.push(normalized);
+      put(normalized);
     }
     console.log(
-      `  ${green('✓')} private venue ${dim(`${venues.length}건 · ${path.relative(ROOT, privatePath)}`)}`,
+      `  ${green('✓')} private venue ${dim(`${raw.length}건 · ${path.relative(ROOT, privatePath)}`)}`,
     );
   } else {
     console.log(
@@ -321,7 +329,12 @@ function collectVenues() {
     console.log(dim('    로컬: pnpm link:private · 워크플로: PRIVATE_REPO_PAT 시크릿'));
   }
 
-  return [...merged.values()];
+  return {
+    venues: [...merged.values()],
+    privateVenues,
+    fetchedVenues: fetched.venues ?? [],
+    trackedVenues: manual.tracked_venues ?? [],
+  };
 }
 
 /**
@@ -413,6 +426,69 @@ function flattenEvents(venues, from, lookaheadDays) {
   }
 
   return events.sort((a, b) => a.due.localeCompare(b.due) || a.venue.localeCompare(b.venue));
+}
+
+/** verifiedAt 이 이 일수를 넘으면 재확인 대상입니다. */
+const STALE_DAYS = 60;
+// 전부 한꺼번에 낡는 날이 옵니다 (지금 private 의 verifiedAt 은 2026-09-09 와
+// 09-11 두 값뿐이라 같은 주에 51건이 동시에 넘어갑니다). 그때 섹션이 51줄이
+// 되지 않게 상한을 둡니다. 건수는 헤더에 그대로 남으므로 규모는 가려지지 않습니다.
+const MAX_GAPS = 8;
+
+/**
+ * 추적 중인 venue 가운데 **들고 있는 정보가 없거나 낡은** 것을 찾습니다.
+ *
+ * 판정 기준을 "정보의 유무와 신선도"로 좁혔습니다. 처음 설계에서는 "지금 낼 수
+ * 있는 마감이 남아 있는가"까지 조건에 넣었는데, 그러면 이번 사이클 마감이 지나고
+ * 다음 사이클 CFP 가 아직 안 뜬 **정상 상태**가 모두 걸립니다. 실제로 돌려 보니
+ * 추적 중인 30개 중 16개가 "남은 제출 마감 없음"으로 잡혀 매주 같은 줄이
+ * 반복됐고(2026-10-01 실측), 그 소음 속에서 정작 유일한 실제 공백인 COLING 이
+ * 묻혔습니다. 확인하러 갈 사람에게 필요한 신호는 "우리 데이터가 비었거나 낡았다"
+ * 쪽이므로 그것만 봅니다.
+ *
+ * STALE_DAYS 는 private 저장소 merge.ts 의 STALE_DAYS 와 같은 60 입니다.
+ * 신선도의 정의를 저장소 양쪽에서 하나로 유지합니다 (content/venues/README.md
+ * 의 "verifiedAt 이 60일을 넘으면 재확인 대상" 과도 같은 값입니다).
+ */
+function detectGaps({ trackedVenues, privateVenues, fetchedVenues }, from) {
+  const privateByKey = new Map();
+  for (const v of privateVenues) {
+    const bucket = privateByKey.get(v.seriesKey);
+    if (bucket) bucket.push(v);
+    else privateByKey.set(v.seriesKey, [v]);
+  }
+  const fetchedKeys = new Set((fetchedVenues ?? []).filter((c) => c?.name).map((c) => venueKey(c.name)));
+
+  const gaps = [];
+  for (const tracked of trackedVenues) {
+    if (!tracked?.name) continue;
+    const key = venueKey(tracked.name);
+    const candidates = privateByKey.get(key) ?? [];
+
+    if (candidates.length === 0) {
+      // upstream 이 덮고 있으면 공백이 아닙니다. private 에 없다는 사실만으로는
+      // 사람이 확인하러 갈 이유가 되지 않습니다.
+      if (fetchedKeys.has(key)) continue;
+      gaps.push({ name: tracked.name, status: 'upstream·private 모두 정보 없음' });
+      continue;
+    }
+
+    // 같은 계열의 여러 회차가 있으면 가장 최근에 확인한 것을 기준으로 봅니다.
+    const freshest = candidates.reduce((a, b) =>
+      String(b.verifiedAt ?? '') > String(a.verifiedAt ?? '') ? b : a,
+    );
+    const ageDays = freshest.verifiedAt ? -daysUntil(freshest.verifiedAt, from) : null;
+    if (ageDays === null) {
+      gaps.push({ name: tracked.name, url: freshest.url, status: '확인한 날짜가 적혀 있지 않음' });
+    } else if (ageDays > STALE_DAYS) {
+      gaps.push({
+        name: tracked.name,
+        url: freshest.url,
+        status: `마지막 확인 ${freshest.verifiedAt} (${ageDays}일 전)`,
+      });
+    }
+  }
+  return gaps;
 }
 
 // ─── 2. Workshop (수동 관리) ─────────────────────────────────
@@ -607,7 +683,24 @@ function renderTimeline(events, urgentDays) {
   return lines;
 }
 
-function buildMessage(deadlineEvents, urgentDays, workshops, events, from) {
+/**
+ * 확인이 필요한 venue. 비어 있으면 섹션째 생략합니다 — "확인 필요 (0건)"이 매주
+ * 뜨면 그 자체가 소음이고, 이 섹션은 비어 있는 것이 정상 상태입니다.
+ */
+function renderGaps(gaps) {
+  const lines = [`🔍 *확인 필요 (${gaps.length}건)*`];
+  for (const gap of gaps.slice(0, MAX_GAPS)) {
+    const name = gap.url ? `<${gap.url}|${gap.name}>` : gap.name;
+    lines.push(`· ${name} — ${gap.status}`);
+  }
+  const rest = gaps.length - Math.min(gaps.length, MAX_GAPS);
+  if (rest > 0) {
+    lines.push(`· 그 외 ${rest}건도 재확인 대상입니다 (private 저장소의 venues.json 참조)`);
+  }
+  return lines;
+}
+
+function buildMessage(deadlineEvents, urgentDays, gaps, workshops, events, from) {
   const week = from.toLocaleDateString('ko-KR', {
     year: 'numeric',
     month: 'long',
@@ -632,6 +725,10 @@ function buildMessage(deadlineEvents, urgentDays, workshops, events, from) {
     lines.push('*학회 마감*', '· 임박한 학회 마감이 없습니다.');
   } else {
     lines.push(...renderTimeline(deadlineEvents, urgentDays));
+  }
+
+  if (gaps.length > 0) {
+    lines.push('', ...renderGaps(gaps));
   }
 
   // 없거나 비어 있으면 섹션째 생략합니다 — workshops.yaml은 수동 관리라 안 채워둔
@@ -739,14 +836,21 @@ async function main() {
   const from = new Date();
   logRunTiming(from);
   const { lookaheadDays, urgentDays } = getDisplayConfig();
-  const deadlineEvents = flattenEvents(collectVenues(), from, lookaheadDays);
+  const sources = collectSources();
+  const deadlineEvents = flattenEvents(sources.venues, from, lookaheadDays);
   console.log(`  ${green('✓')} 마감 ${dim(`${deadlineEvents.length}건 (앞으로 ${lookaheadDays}일)`)}`);
+
+  const gaps = detectGaps(sources, from);
+  console.log(
+    `  ${gaps.length > 0 ? yellow('!') : green('✓')} 확인 필요 ` +
+      dim(`${gaps.length}건 / 추적 ${sources.trackedVenues.length}건`),
+  );
 
   const workshops = upcomingWorkshops(from);
   console.log(`  ${green('✓')} Workshop ${dim(`${workshops.length}건`)}`);
 
   const events = await upcomingLabEvents(from);
-  const message = buildMessage(deadlineEvents, urgentDays, workshops, events, from);
+  const message = buildMessage(deadlineEvents, urgentDays, gaps, workshops, events, from);
 
   console.log(`\n${dim('─'.repeat(24))}`);
   console.log(message);
