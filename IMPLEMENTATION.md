@@ -815,3 +815,215 @@ private 저장소에 로더가 읽는 콘텐츠가 하나도 없기 때문입니
 - Phase 3 착수 전에 반드시 이 항목을 다시 볼 것.
 - 대시보드가 `venues.json`을 참조하기 시작하는 순간부터 이 사각지대는
   실제 위험으로 바뀝니다.
+
+**2026-10-01 갱신: `venues.json`의 첫 소비자가 생겼습니다**
+
+주간 Slack 요약(`scripts/weekly-slack-summary.mjs`)이 `venues.json`을 읽습니다
+(아래 15절). 다만 사각지대의 성격은 아직 바뀌지 않았습니다.
+
+- 이 스크립트는 `dist/`를 만들지 않습니다. 읽어서 Slack에 보내기만 합니다.
+  따라서 산출물을 검사하는 `verify-public-build.mjs`의 대상 자체가 아닙니다.
+- 사이트 로더(`src/lib/deadlines.ts`)는 여전히 `venues.json`을 모릅니다.
+  2026-10-01에 private을 포함해 빌드한 뒤 private 전용 venue 이름 11개
+  (MobiSys · SenSys · FAccT · NSDI · SIGCOMM · MICCAI · MobiCom · INFOCOM ·
+  ARR 2026 · TMLR · JBHI)를 `dist/`에서 찾아 **전부 0건**임을 확인했습니다.
+- 위 표의 선택지 X · Y · Z는 그대로 유효합니다. 결정 시점도 Phase 3 그대로입니다.
+
+경계가 바뀌는 지점은 **사이트가 읽기 시작할 때**이지 Slack이 읽기 시작할 때가
+아닙니다. 이 구분을 잃으면 불필요한 검사기를 미리 만들게 됩니다.
+
+---
+
+## 15. Slack 주간 요약 확장 (Phase 2 첫 단계, 2026-10-01)
+
+학회 마감의 1차 소스를 private `venues.json`으로 옮기고, 표현을 티어 그룹핑에서
+하이브리드 타임라인으로 바꿨습니다. 공개 사이트의 동작은 바뀌지 않았습니다.
+
+### 진단 — upstream에 2027이 없다
+
+2026-09-23에 확인한 것입니다. 2026-10-01에 다시 실측해 같은 결론을 얻었습니다.
+
+| 항목 | 실측 |
+| --- | --- |
+| `conferences-fetched.json` | 49레코드, `generated_at: 2026-09-09` (sync 정상) |
+| 그중 2027 사이클 | **7건** — AAAI · ICLR · ICRA · NAACL · WACV · WSDM · WWW |
+| `tracked_venues` | 30건 |
+| upstream에 2027이 없는 추적 venue | **23건** (CVPR · ICCV · ACL · KDD 등) |
+| private `venues.json` | 51건 (학회 39 · 저널 12), 이벤트 115건 |
+| private의 confidence | `confirmed` 23 · `estimated` 28 |
+| private의 `verifiedAt` | `2026-09-09`와 `2026-09-11` 두 값뿐 |
+
+수집 실패가 아닙니다. huggingface/ai-deadlines에 해당 연도 레코드가 아직 없습니다.
+그래서 공개 데이터만으로는 요약이 "임박한 마감 없음"에 가까운 상태였습니다.
+
+### 소스 우선순위: private > 수동 > 자동 수집
+
+`conferences.yaml`의 수동 목록보다 private을 위에 둡니다. private 레코드는 사람이
+공식 CFP를 보고 채운 것이라 `confidence` · `source` · `verifiedAt`을 들고 있고,
+수동 목록은 `verified_by`가 비어 있는 초안이 대부분입니다.
+
+**사이트는 이 우선순위를 쓰지 않습니다.** `/calendar`와 `/internal/deadlines`는
+private을 읽지 않으므로 "수동이 자동 수집을 덮어쓴다"가 그대로 맞습니다.
+달라진 것은 Slack 요약뿐이고, 그 사실을 `conferences.yaml` 주석에 적었습니다.
+
+### 병합 키는 이름이 아니라 id에서 뽑습니다
+
+처음 설계는 `name.replace(/\s+\d{4}$/, '')`로 연도를 떼는 방식이었습니다.
+51건에 적용해 보니 **27건만 정규화됐습니다.**
+
+```
+AAAI-27                  -> "aaai-27"                  (AAAI에 매칭 실패)
+ACL 2027 (ARR 1월 사이클) -> "acl 2027 (arr 1월 사이클)"  (ACL에 매칭 실패)
+KDD 2027 Cycle 2         -> "kdd 2027 cycle 2"          (KDD에 매칭 실패)
+NSDI '27                 -> "nsdi '27"
+```
+
+private의 `id`는 전부 kebab-case라 안정적입니다. private 저장소
+`src/lib/venues/merge.ts`의 `venueKey()` · `seedSeriesKey()`와 같은 방식으로
+id에서 계열 키를 뽑으면 **추적 30건 중 29건이 연결됩니다** (연결되지 않는
+하나는 COLING이고, 그것은 실제로 private에도 없습니다).
+
+연도는 두 자리로 줄입니다. id에 `aaai-27`과 `icra-2027`이 섞여 있어서, 네 자리를
+그대로 쓰면 private의 `AAAI-27`과 자동 수집분의 `AAAI 2027`이 다른 회차로 갈려
+둘 다 목록에 남습니다.
+
+### 표현: 티어 그룹핑 → 하이브리드
+
+- 🚨 **임박 마감** — D-14 이내. 접지 않습니다.
+- 📆 **학회 타임라인** — 그 이후를 월별로 묶습니다. 한 달에 5건까지.
+- 🔍 **확인 필요** — 데이터가 없거나 낡은 venue. 비어 있으면 섹션째 생략.
+
+티어 이름(긴급 / 이번 달 / 다음 달 / 그 이후)을 버린 이유는 경계가 상대적이기
+때문입니다. "다음 달"이 몇 월인지 세어 봐야 했고, D-61과 D-180이 똑같이
+"그 이후"에 들어가 멀리 있는 마감 사이의 간격이 보이지 않았습니다.
+
+임박 경계는 `conferences.yaml`의 `display.tier_thresholds.urgent`를 계속 씁니다.
+사이트의 긴급 배지와 같은 값을 보게 해서 두 화면의 판단이 어긋나지 않게 합니다.
+
+### 이벤트 유형 2 → 9
+
+표시: `registration` · `abstract` · `paper` · `supplementary` · `notification` ·
+`cameraReady` · `rebuttal` · `commitment` · `transfer`
+
+미표시: `review` · `earlyReject` (받는 사람이 할 일이 없음) · `tutorial`
+(투고와 성격이 다르고 해당 venue가 한 곳뿐) · `conference` (마감이 아니라 행사일)
+
+private `schema.ts`의 `ALERT_EVENT_TYPES`는 제출 계열 넷뿐이고, 주석에
+"통보·리버털·개최는 대시보드에만 나오고 Slack으로는 나가지 않습니다"라고
+적혀 있었습니다. **이 결정이 그 주석을 뒤집습니다.** private 저장소 쪽 주석도
+함께 고쳐야 정본과 동작이 어긋나지 않습니다.
+
+**같은 유형이 중복될 때만** 원본 `label`을 씁니다. WWW 2027은 full paper와
+short paper가 각각 초록·논문 마감을 갖고, INTERSPEECH 2027은 논문 마감과 수정본
+마감이 둘 다 `paper`이고, NeurIPS 2026은 통보가 두 번입니다. 일반 라벨만 쓰면
+같은 줄이 두 번 나온 것처럼 보여 버그로 읽힙니다.
+
+### 트랙 이모지와 카테고리 매핑
+
+🔵 ml · 🟣 cv · 🟢 nlp · 🟡 app · 🔴 rb · 🟠 nw · ⚪ 트랙 미정
+
+Slack에는 색을 쓸 수 없어서 `venues.json`의 `tracks` 색이 하는 역할을 이모지로
+대신합니다.
+
+카테고리 → 트랙 표는 private `merge.ts`의 `CATEGORY_TO_TRACK`을 그대로 옮긴
+**사본**입니다. 정본은 그쪽이고 한쪽만 고치면 안 됩니다. 사본을 두는 이유는
+private 오버레이가 없을 때도 트랙을 붙여야 하기 때문입니다.
+
+설계 단계의 초안에는 존재하지 않는 키 `ml_theory`가 있었습니다. 실제 값은
+`theory_stats`입니다. `networking`도 초안에 있었지만 `tracked_venues`에 그
+카테고리를 쓰는 venue가 없습니다. 네트워크 계열 9건은 private에만 있고 거기서는
+`track`을 직접 들고 있어 변환을 거치지 않습니다.
+
+AAAI · IJCAI를 `app`에 두는 것은 private 시드의 기존 배정에서 역산한 값이고,
+COLT · AISTATS · UAI가 `ml`, ICASSP · INTERSPEECH · WWW · KDD가 `app`인 것과
+어긋나지 않습니다.
+
+수동 목록에는 `category`가 없고 `tags`만 있습니다. 그대로 두면 NeurIPS 2027 ·
+ICLR 2027 · ICML 2027 · AISTATS 2027 · UAI 2027 다섯 건이 `ml`이 아니라 기본값으로
+떨어지므로, `tracked_venues`에서 이름으로 카테고리를 역참조합니다.
+
+### Gap 감지: 판정 기준을 좁힌 이유
+
+초안의 판정식은 `fetched 없음 AND (private 없음 OR verifiedAt 90일 초과)`였고,
+private 쪽 조건에 "남은 제출 마감이 있는가"가 들어 있었습니다. 실제로 돌려 보니
+**추적 30건 중 16건이 걸렸습니다** (2026-10-01).
+
+```
+🔍 확인 필요 (16건)
+· ECCV  — 마지막 확인 2026-09-11 (19일 전), 남은 제출 마감 없음
+· CIKM  — 마지막 확인 2026-09-11 (19일 전), 남은 제출 마감 없음
+  ... 같은 사유 15건 + COLING 1건
+```
+
+ECCV 2026은 마감이 지났고 ECCV 2027 CFP는 아직 안 뜬 것이 **정상 상태**입니다.
+그것을 공백으로 보고하면 매주 같은 줄이 반복되고, 정작 유일한 실제 공백인
+COLING이 묻힙니다.
+
+그래서 기준을 **정보의 유무와 신선도**로 좁혔습니다.
+
+| 상태 | 판정 |
+| --- | --- |
+| private 레코드 없음 · upstream에도 없음 | 공백 |
+| private 레코드 없음 · upstream이 덮음 | 공백 아님 |
+| private 레코드 있음 · `verifiedAt` ≤ 60일 | 공백 아님 |
+| private 레코드 있음 · `verifiedAt` > 60일 | 재확인 대상 |
+| private 레코드 있음 · `verifiedAt` 없음 | 재확인 대상 |
+
+결과는 **COLING 1건**입니다. 임계값 60일은 private `merge.ts`의 `STALE_DAYS`와
+`content/venues/README.md`의 "verifiedAt이 60일을 넘으면 재확인 대상"에 맞춘
+값입니다. 초안은 90일이었는데, 신선도의 정의가 저장소 양쪽에서 다른 값으로
+공존하는 상태를 피했습니다.
+
+섹션에 8건 상한을 둡니다. `verifiedAt`이 두 값뿐이라 같은 주에 51건이 한꺼번에
+낡습니다. 건수는 헤더에 남기므로 규모는 가려지지 않습니다.
+
+### 메시지 길이
+
+| | 줄 | 글자 |
+| --- | --- | --- |
+| 이전 (티어 그룹핑, 자동 수집분만) | 18 | 807 |
+| 상한 없는 하이브리드 | 78 | 6,579 |
+| **적용한 것** (월당 5건 · 제출 계열 우선) | **56** | **3,142** |
+
+월별 상한에 걸릴 때는 제출 계열(`registration` · `abstract` · `paper` ·
+`supplementary`)을 먼저 남깁니다. 유형이 아홉으로 늘어난 뒤로는 통보·리버털·
+최종본이 제출 마감을 상한 밖으로 밀어내는 일이 생기기 때문입니다.
+
+접은 항목을 볼 화면은 **안내하지 않습니다.** `/internal/deadlines`는
+`conferences.yaml`과 자동 수집분만 읽어서 private venue를 모르고, 그것을 보여 줄
+대시보드는 Phase 3입니다. 없는 곳으로 안내하지 않는 쪽을 택했습니다.
+
+### 워크플로와 fallback
+
+`weekly-summary.yml`이 `lab-os-private`를 `.private/`로 checkout합니다.
+경로가 `.private/`인 것은 로컬 심볼릭 링크와 같은 자리이고 `.gitignore`가
+"CI checks it out here"로 이미 선언해 둔 자리이기 때문입니다.
+
+`PRIVATE_REPO_PAT` 시크릿이 없으면 스텝을 건너뜁니다. 빈 토큰으로 private 저장소를
+checkout하려 들면 인증 실패로 워크플로가 멈추는데, 시크릿이 없다고 매주 빨개지면
+아무도 안 보게 됩니다 (`SLACK_WEBHOOK_URL`을 다루는 방식과 같은 원칙).
+
+**이 시크릿은 2026-10-01 현재 등록돼 있지 않습니다.** 등록된 것은
+`GCAL_ICAL_LAB_GENERAL`과 `SLACK_WEBHOOK_URL` 둘뿐입니다. 등록 전까지 요약은
+자동 수집분과 수동 목록만으로 나갑니다 (실측 7건).
+
+토큰 자체가 아니라 **있는지 여부만** job env로 넘깁니다. 토큰을 job env에 두면
+모든 스텝(특히 lifecycle script를 돌리는 `pnpm install`)의 환경에 PAT가 실립니다.
+
+스크립트는 `PRIVATE_VENUES_PATH` → `.private/` → `lab-os-private/` 순으로 파일을
+찾고, 하나도 없으면 경고만 남기고 계속 진행합니다.
+
+### 이번에 하지 않은 것
+
+임박 핑(D-14 / 7 / 1 별도 알림) · 설정 파일(channel · tracks) · 대시보드 UI ·
+alert 시스템 · 공개 `conferences.yaml` 삭제 · `fetch-conferences.mjs` 수정 ·
+aideadlines upstream PR.
+
+### 후속으로 남은 것
+
+- private 저장소 `src/lib/venues/schema.ts`의 `ALERT_EVENT_TYPES` 주석 갱신.
+- private 저장소 `content/venues/README.md`에 수동 편집 절차 보강.
+- COLING은 upstream에 파일이 없고 private에도 레코드가 없습니다. 투고를 고려하면
+  공식 CFP를 확인해 private에 넣어야 "확인 필요"에서 빠집니다. 다만 ARR 2026년
+  10월 사이클의 커밋 마감 라벨이 COLING 2027을 대상으로 적고 있어, ARR 경로로는
+  이미 추적되는 상태입니다.
