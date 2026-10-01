@@ -299,25 +299,53 @@ function tierOf(daysLeft, thresholds) {
   return null;
 }
 
-/** 학회 마감을 티어별로 묶습니다. 각 티어 안에서는 마감일 오름차순. */
-function tieredDeadlines(from) {
-  const { lookaheadDays, tierThresholds } = getDisplayConfig();
-  const groups = { urgent: [], this_month: [], next_month: [], future: [] };
-
-  for (const v of collectVenues()) {
+/**
+ * venue 목록을 이벤트 하나당 한 줄인 평평한 배열로 폅니다. 마감일 오름차순으로
+ * 정렬하고, 이미 지난 것과 lookahead 를 넘는 것은 버립니다.
+ *
+ * 추출과 묶기를 나눠 둡니다. 표현 방식(티어·월별)을 바꿀 때 추출 쪽을 건드리지
+ * 않아도 되고, Gap 감지처럼 묶기와 무관한 기능도 같은 배열을 씁니다.
+ *
+ * 남은 일수는 반드시 daysUntil() 로 구합니다. new Date(ev.date) 끼리 뺄셈하면
+ * 오프셋 없는 문자열이 실행 환경의 로컬 시간으로 해석되어 KST 와 UTC 러너의
+ * 결과가 달라지고, 마감일 당일 항목이 조용히 사라집니다 (CLAUDE.md §4).
+ */
+function flattenEvents(venues, from, lookaheadDays) {
+  const events = [];
+  for (const v of venues) {
     for (const ev of v.events) {
       const what = EVENT_LABELS[ev.type];
       if (!what) continue;
       const due = String(ev.date).slice(0, 10);
       const daysLeft = daysUntil(due, from);
-      if (daysLeft > lookaheadDays) continue;
-      const tier = tierOf(daysLeft, tierThresholds);
-      if (!tier) continue;
-      groups[tier].push({ label: v.name, what, due, daysLeft, url: v.url });
+      if (daysLeft < 0 || daysLeft > lookaheadDays) continue;
+      events.push({
+        venue: v.name,
+        type: ev.type,
+        what,
+        due,
+        daysLeft,
+        url: v.url,
+        confidence: v.confidence,
+        origin: v.origin,
+        // 같은 venue 에 같은 유형이 둘 이상일 때 구분하려고 원본 label 을 남깁니다
+        // (WWW 의 full paper·short paper, INTERSPEECH 의 논문·수정본).
+        rawLabel: ev.label ?? '',
+      });
     }
   }
+  return events.sort((a, b) => a.due.localeCompare(b.due) || a.venue.localeCompare(b.venue));
+}
 
-  for (const tier of TIER_ORDER) groups[tier].sort((a, b) => a.due.localeCompare(b.due));
+/** 학회 마감을 티어별로 묶습니다. 각 티어 안에서는 마감일 오름차순. */
+function tieredDeadlines(from) {
+  const { lookaheadDays, tierThresholds } = getDisplayConfig();
+  const groups = { urgent: [], this_month: [], next_month: [], future: [] };
+
+  for (const e of flattenEvents(collectVenues(), from, lookaheadDays)) {
+    const tier = tierOf(e.daysLeft, tierThresholds);
+    if (tier) groups[tier].push(e);
+  }
   return groups;
 }
 
@@ -446,7 +474,7 @@ function buildMessage(deadlinesByTier, workshops, events, from) {
       lines.push(`_${TIER_LABEL[tier]}_ (${items.length}건)`);
       const shown = items.slice(0, MAX_PER_TIER);
       for (const d of shown) {
-        const name = d.url ? `<${d.url}|${d.label}>` : d.label;
+        const name = d.url ? `<${d.url}|${d.venue}>` : d.venue;
         lines.push(`· \`${ddayLabel(d.daysLeft)}\` ${name} ${d.what} — ${d.due}`);
       }
       const rest = items.length - shown.length;
