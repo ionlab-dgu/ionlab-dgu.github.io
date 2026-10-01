@@ -190,12 +190,53 @@ function seriesYear(idOrYear) {
   return String(idOrYear).match(/(?:19|20)?(\d{2})(?:-[^-]*)?$/)?.[1] ?? '';
 }
 
+/**
+ * 트랙별 이모지. Slack 은 색을 쓸 수 없어서 색 대신 이모지로 분야를 구분합니다
+ * (private venues.json 의 tracks 에 적힌 색과 같은 역할입니다).
+ */
+const TRACK_EMOJI = {
+  ml: '🔵',
+  cv: '🟣',
+  nlp: '🟢',
+  app: '🟡',
+  rb: '🔴',
+  nw: '🟠',
+};
+
+/**
+ * aideadlines 의 category 를 우리 트랙으로 옮기는 표.
+ *
+ * **정본은 private 저장소의 src/lib/venues/merge.ts 의 CATEGORY_TO_TRACK 입니다.**
+ * 여기 있는 것은 사본이므로 한쪽만 고치지 마세요. 사본을 두는 이유는 private
+ * 오버레이가 없을 때도(= 자동 수집분과 수동 목록만으로 돌 때도) 트랙을 붙여야
+ * 하기 때문입니다.
+ *
+ * 임의로 정한 값이 아니라 private 시드의 기존 트랙 배정에서 역산한 것입니다.
+ * AAAI·IJCAI 가 app, COLT·AISTATS·UAI 가 ml, ICASSP·INTERSPEECH·WWW·KDD 가 app
+ * 인 것과 어긋나지 않습니다.
+ */
+const CATEGORY_TO_TRACK = {
+  ml_general: 'ml',
+  theory_stats: 'ml',
+  vision: 'cv',
+  nlp: 'nlp',
+  robotics: 'rb',
+  ai_general: 'app',
+  data_mining: 'app',
+  speech: 'app',
+  speech_audio: 'app',
+  multimedia: 'app',
+  web_ir: 'app',
+};
+
 /** private venue 레코드를 공통 형태로 옮깁니다. */
 function fromPrivateVenue(v) {
   return {
     seriesKey: seriesKeyFromId(v.id),
     seriesYear: seriesYear(v.id),
     name: v.name,
+    // private 은 track 을 직접 들고 있습니다 — 카테고리 변환이 필요 없습니다.
+    track: v.track,
     kind: v.kind ?? 'conference',
     confidence: v.confidence ?? 'confirmed',
     url: v.url,
@@ -212,7 +253,7 @@ function fromPrivateVenue(v) {
  * 리버털·최종본·커밋·저널 이전이 없는 것은 수집 실패가 아니라 스키마의 한계이고,
  * 그 유형들은 private 쪽에만 있습니다.
  */
-function fromRecord(c, origin) {
+function fromRecord(c, category, origin) {
   const events = [];
   for (const [type, date] of [
     ['abstract', c.abstract_deadline],
@@ -225,6 +266,7 @@ function fromRecord(c, origin) {
     seriesKey: venueKey(c.name),
     seriesYear: seriesYear(c.year ?? ''),
     name: `${c.name}${c.year ? ` ${c.year}` : ''}`,
+    track: CATEGORY_TO_TRACK[category],
     kind: 'conference',
     // 자동 수집분·수동 목록에는 confidence 개념이 없습니다. "(추정)" 표시를
     // 붙이지 않으려고 confirmed 로 둡니다 — 추정이라고 단정할 근거도 없습니다.
@@ -244,14 +286,23 @@ function collectVenues() {
   const manual = readYaml(path.join(CONTENT, 'conferences.yaml'));
   const fetched = readJson(path.join(ROOT, 'src', 'data', 'conferences-fetched.json'));
 
+  // 수동 목록(conferences[])에는 category 가 없습니다 — tags 만 있습니다. 그대로
+  // 두면 NeurIPS·ICLR·ICML·AISTATS·UAI 가 ml 이 아니라 기본값으로 떨어지므로,
+  // tracked_venues 에서 이름으로 카테고리를 역참조합니다.
+  const categoryByKey = new Map(
+    (manual.tracked_venues ?? [])
+      .filter((t) => t?.name && t?.category)
+      .map((t) => [venueKey(t.name), t.category]),
+  );
+
   const merged = new Map();
   const put = (v) => merged.set(`${v.seriesKey}-${v.seriesYear}`, v);
 
   for (const c of fetched.venues ?? []) {
-    if (c?.name) put(fromRecord(c, 'fetched'));
+    if (c?.name) put(fromRecord(c, c.category, 'fetched'));
   }
   for (const c of manual.conferences ?? []) {
-    if (c?.name) put(fromRecord(c, 'manual'));
+    if (c?.name) put(fromRecord(c, categoryByKey.get(venueKey(c.name)), 'manual'));
   }
 
   const privatePath = resolvePrivateVenuesPath();
@@ -338,6 +389,7 @@ function flattenEvents(venues, from, lookaheadDays) {
         due,
         daysLeft,
         url: v.url,
+        track: v.track,
         confidence: v.confidence,
         origin: v.origin,
         // 같은 venue 에 같은 유형이 둘 이상일 때 구분하려고 원본 label 을 남깁니다
@@ -503,7 +555,14 @@ function pickForMonth(monthEvents) {
 
 function eventRow(e, lead) {
   const name = e.url ? `<${e.url}|${e.venue}>` : e.venue;
-  return `· ${lead} ${name} ${e.what}`;
+  // 트랙을 모르는 경우(매핑에 없는 category, tracked_venues 에 없는 수동 항목)는
+  // ⚪ 로 둡니다. 추측해서 아무 트랙에 넣지 않습니다 (CLAUDE.md §2 "본문 작성").
+  const track = TRACK_EMOJI[e.track] ?? '⚪';
+  // confidence=estimated 는 공식 CFP 게시 전 추정치입니다. private venues.json 의
+  // note 가 "UI에서 반드시 시각적으로 구분할 것"이라고 못박아 둔 부분입니다 —
+  // 추정 날짜를 확정으로 읽고 투고 계획을 세우면 그대로 사고가 됩니다.
+  const estimated = e.confidence === 'estimated' ? ' (추정)' : '';
+  return `· ${lead} ${track} ${name} ${e.what}${estimated}`;
 }
 
 /**
