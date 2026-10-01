@@ -832,6 +832,12 @@ private 저장소에 로더가 읽는 콘텐츠가 하나도 없기 때문입니
 경계가 바뀌는 지점은 **사이트가 읽기 시작할 때**이지 Slack이 읽기 시작할 때가
 아닙니다. 이 구분을 잃으면 불필요한 검사기를 미리 만들게 됩니다.
 
+### 비공개 overlay와 Slack workflow (2026-10-01)
+
+- 주간 Slack 요약은 비공개 저장소(lab-os-private)의 venue 데이터를 참조합니다.
+  필요한 폴더만 가져오도록 workflow에 sparse-checkout이 적용되어 있습니다.
+- 세부 격리 규칙·운영 주의 사항은 private CLAUDE.md §4에 있습니다.
+
 ---
 
 ## 15. Slack 주간 요약 확장 (Phase 2 첫 단계, 2026-10-01)

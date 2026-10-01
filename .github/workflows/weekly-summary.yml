@@ -95,6 +95,11 @@ jobs:
           repository: ionlab-dgu/lab-os-private
           token: ${{ secrets.PRIVATE_REPO_PAT }}
           path: .private
+          # 스크립트가 읽는 폴더만 받습니다. 범위를 넓히기 전에
+          # private CLAUDE.md §4 를 먼저 보세요.
+          sparse-checkout: |
+            /content/venues/
+          sparse-checkout-cone-mode: false
 
       - uses: pnpm/action-setup@v4
 
