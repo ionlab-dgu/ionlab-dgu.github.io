@@ -170,6 +170,14 @@ display:
 # 자동 수집분과 **같은 학회·같은 연도**가 여기 있으면 이쪽이 이깁니다.
 # upstream이 틀렸거나 아직 안 올라온 날짜를 우리가 덮어쓰기 위한 자리입니다.
 # 공식 CFP를 확인했다면 verified_by / verified_on 을 채우세요.
+#
+# ⚠️ 주간 Slack 요약(scripts/weekly-slack-summary.mjs)에서는 이 목록 위에 private
+#    오버레이(lab-os-private 의 content/venues/venues.json)가 한 겹 더 올라갑니다.
+#    거기에 같은 학회·같은 회차가 있으면 **private 쪽이 이깁니다.** private 레코드는
+#    사람이 공식 CFP 를 보고 채운 것이라 confidence·source·verifiedAt 을 들고 있는데,
+#    이 목록은 verified_by 가 비어 있는 초안이 대부분이기 때문입니다.
+#    사이트(/calendar, /internal/deadlines)는 private 을 읽지 않으므로 위 설명이
+#    그대로 맞습니다 — 우선순위가 다른 것은 Slack 요약뿐입니다.
 
 conferences:
   - name: NeurIPS
