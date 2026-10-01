@@ -9,6 +9,23 @@ name: Weekly summary
 #
 # ⚠️ 과제(Grant) 마감은 담지 않습니다 — /internal/deadlines 에서 봅니다.
 #
+# ⚠️ private 오버레이를 .private/ 로 checkout 합니다 (2026-10-01 도입)
+#    학회 마감의 1차 소스가 private 저장소의 content/venues/venues.json 입니다.
+#    upstream(aideadlines)에 2027 사이클 레코드가 추적 30개 중 7개뿐이어서,
+#    공개 데이터만으로는 CVPR 2027·ICCV 2027·ACL 2027·KDD 2027 등이 통째로
+#    빠집니다 (scripts/weekly-slack-summary.mjs 의 "1. 학회 마감" 주석 참고).
+#
+#    이 job 은 사이트를 빌드하지 않습니다 — 읽어서 Slack 에 보내기만 하고 dist/ 를
+#    만들지 않으므로, 여기서 private 을 읽어도 공개 배포본과는 무관합니다.
+#    (공개 배포는 deploy.yml 이고 거기서는 private 저장소를 checkout 하지 않으며,
+#    `.private/` 가 있으면 빌드 전에 실패시킵니다. PUBLIC_ONLY=1 게이트도 그대로입니다.)
+#    경로를 .private/ 로 둔 것은 로컬 심볼릭 링크와 같은 자리이고 .gitignore 가
+#    이미 막고 있는 자리이기 때문입니다.
+#
+#    PRIVATE_REPO_PAT 시크릿이 없으면 이 스텝을 건너뜁니다. 그 경우 요약은
+#    자동 수집분과 수동 목록만으로 나가고 워크플로는 초록색을 유지합니다 —
+#    시크릿이 없다고 매주 빨개지면 아무도 안 봅니다 (SLACK_WEBHOOK_URL 과 같은 원칙).
+#
 # SLACK_WEBHOOK_URL 시크릿이 없으면 요약을 로그에만 남기고 성공합니다.
 # 시크릿을 넣기 전에도 워크플로가 초록색이어야 무슨 일이 나는지 볼 수 있습니다.
 #
@@ -57,8 +74,27 @@ jobs:
   summarize:
     name: 주간 요약
     runs-on: ubuntu-latest
+    # secrets 컨텍스트는 step 의 if: 에서 직접 읽기 어렵습니다. job env 로 한 번
+    # 옮겨 두고 그것을 봅니다.
+    #
+    # 토큰 자체가 아니라 **있는지 여부만** 넘깁니다. 토큰을 job env 에 두면 모든
+    # 스텝(특히 lifecycle script 를 돌리는 `pnpm install`)의 환경에 PAT 가 실립니다.
+    # 비교를 식 안에서 끝내면 env 에는 'true'/'false' 만 남고, 토큰은 아래 checkout
+    # 스텝의 with.token 으로만 들어갑니다.
+    env:
+      HAS_PRIVATE_PAT: ${{ secrets.PRIVATE_REPO_PAT != '' }}
     steps:
       - uses: actions/checkout@v4
+
+      # 시크릿이 없으면 건너뜁니다 (위 주석 참고). 빈 토큰으로 private 저장소를
+      # checkout 하려 들면 인증 실패로 워크플로가 멈춥니다.
+      - name: private 오버레이 checkout
+        if: env.HAS_PRIVATE_PAT == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: ionlab-dgu/lab-os-private
+          token: ${{ secrets.PRIVATE_REPO_PAT }}
+          path: .private
 
       - uses: pnpm/action-setup@v4
 

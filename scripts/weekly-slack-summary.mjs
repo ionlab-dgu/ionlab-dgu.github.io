@@ -10,9 +10,10 @@
  * 담는 것:
  *   1. 앞으로 7일간의 랩 일정 (제목·날짜·시각)
  *   2. 앞으로 180일(conferences.yaml 의 display.lookahead_days) 이내 학회 마감
- *      (수동 목록 + 자동 수집 캐시를 합친 것), 티어별(긴급/이번 달/다음 달/그 이후)로
- *      묶어서 보여줍니다. 티어 하나에 5건 넘게 있으면 나머지는 "그 외 N개는
- *      사이트 참조"로 접습니다 — 그래야 학회 30개를 추적해도 메시지가 안 길어집니다.
+ *      (private 오버레이 + 수동 목록 + 자동 수집 캐시를 합친 것). 표현은 하이브리드로,
+ *      D-14 이내는 "🚨 임박 마감"에 따로 모으고 나머지는 "📆 학회 타임라인"에서
+ *      월별로 묶습니다. 한 달에 5건이 넘으면 나머지는 접습니다 — 그래야 학회 30개를
+ *      추적해도 메시지가 안 길어집니다.
  *   3. content/workshops.yaml 에 적힌 workshop (있을 때만 — 학회와 달리 자동
  *      수집하지 않는 수동 목록이라, 비어 있으면 이 섹션은 아예 안 뜹니다)
  *
@@ -58,14 +59,13 @@ const EVENT_HORIZON_DAYS = 7;
 const TIMEOUT_MS = 15_000;
 const DRY_RUN = process.argv.includes('--dry-run');
 
-// 티어 경계·순서는 content/conferences.yaml 의 display.tier_thresholds 와 같은
-// 기본값입니다 (src/lib/deadlines.ts 의 DISPLAY_FALLBACK과 동일하게 유지하세요).
-const TIER_ORDER = ['urgent', 'this_month', 'next_month', 'future'];
-const TIER_LABEL = { urgent: '긴급', this_month: '이번 달', next_month: '다음 달', future: '그 이후' };
-const TIER_THRESHOLDS_FALLBACK = { urgent: 14, this_month: 30, next_month: 60, future: 180 };
+// "임박"의 경계는 content/conferences.yaml 의 display.tier_thresholds.urgent 를
+// 그대로 씁니다. 사이트의 긴급 배지(src/lib/deadlines.ts)와 같은 값을 보게 해서,
+// Slack 에서 임박이라고 본 것이 사이트에서도 긴급으로 보이도록 맞춥니다.
+const URGENT_DAYS_FALLBACK = 14;
 const LOOKAHEAD_DAYS_FALLBACK = 180;
-// 티어 하나에 너무 많이 쌓이면 메시지가 길어져 아무도 안 읽습니다.
-const MAX_PER_TIER = 5;
+// 한 달에 너무 많이 쌓이면 메시지가 길어져 아무도 안 읽습니다.
+const MAX_PER_MONTH = 5;
 
 /** CORE_SCHEMA 로 파싱해 날짜를 문자열로 남깁니다 (src/lib/yaml.ts 와 같은 이유). */
 function parseYaml(source) {
@@ -101,69 +101,394 @@ function ddayLabel(daysLeft) {
 
 // ─── 1. 학회 마감 ────────────────────────────────────────────
 
-/**
- * 자동 수집 캐시 + 수동 목록. 같은 학회·연도면 수동이 이깁니다
- * (src/lib/deadlines.ts 의 getConferences() 와 같은 규칙).
+/*
+ * 마감 정보의 소스는 셋이고, 우선순위는 **private > 수동 > 자동 수집** 입니다.
+ *
+ * private 오버레이(lab-os-private)의 content/venues/venues.json 은 사람이 공식 CFP를
+ * 보고 채운 것이라 confidence·source·verifiedAt 을 함께 들고 있습니다. 수동 목록
+ * (content/conferences.yaml 의 conferences[])은 verified_by 가 비어 있는 초안이
+ * 대부분이고, 자동 수집분은 upstream 에 레코드가 없으면 아예 비어 있습니다.
+ *
+ * 2026-09-23 진단: 추적 중인 30개 중 upstream(aideadlines)에 2027 사이클 레코드가
+ * 있는 것은 7개뿐이었습니다 (AAAI·ICLR·ICRA·NAACL·WACV·WSDM·WWW). CVPR 2027·
+ * ICCV 2027·ACL 2027·KDD 2027 을 포함해 25개 이상이 통째로 빠져 있었습니다.
+ * private 을 가장 높게 두는 이유가 이것입니다.
+ *
+ * ⚠️ content/conferences.yaml 의 "수동 목록이 자동 수집분을 덮어쓴다"는 설명은
+ *    사이트(src/lib/deadlines.ts)에서는 그대로 맞습니다. 다만 이 스크립트에서는
+ *    그 위에 private 이 한 겹 더 올라갑니다.
+ *
+ * ⚠️ private 을 읽어도 공개 배포본과는 무관합니다. 이 스크립트는 dist/ 를 만들지
+ *    않고 읽어서 Slack 에 보내기만 합니다 (워크플로의 GCAL_ICAL_LAB_GENERAL 과
+ *    같은 논리입니다 — weekly-summary.yml 주석 참고). 다만 그 전제는 Webhook 채널이
+ *    랩 내부 전용이라는 것이고, 그것은 이 파일 맨 위에 적어 둔 그대로입니다.
  */
-function collectConferences() {
+
+/**
+ * private venues.json 을 찾습니다. 없으면 undefined 를 반환하고, 호출부가
+ * 자동 수집분과 수동 목록만으로 계속 진행합니다 — private 오버레이가 없다고
+ * 요약이 안 나가면 안 됩니다.
+ *
+ * 후보 순서:
+ *   1. PRIVATE_VENUES_PATH — 명시적으로 지정했을 때
+ *   2. .private/content/... — 로컬 심볼릭 링크 (pnpm link:private)
+ *   3. lab-os-private/content/... — 워크플로의 actions/checkout path
+ *
+ * 3번이 ROOT 의 **하위**인 것에 주의하세요. actions/checkout 의 path 는
+ * $GITHUB_WORKSPACE 기준이고 이 저장소도 거기에 체크아웃되므로, 형제 경로인
+ * ROOT/../lab-os-private 는 러너에 존재하지 않습니다.
+ */
+function resolvePrivateVenuesPath() {
+  const candidates = [
+    process.env.PRIVATE_VENUES_PATH?.trim(),
+    path.join(ROOT, '.private', 'content', 'venues', 'venues.json'),
+    path.join(ROOT, 'lab-os-private', 'content', 'venues', 'venues.json'),
+  ].filter(Boolean);
+  return candidates.find((candidate) => fs.existsSync(candidate));
+}
+
+/**
+ * 대조용 키. 대소문자·공백·하이픈·아포스트로피·마침표를 지웁니다.
+ * 'ACM MM' 과 'acm-mm', "NSDI '27" 과 'NSDI 27' 이 같은 venue 로 붙습니다.
+ *
+ * **정본은 private 저장소의 src/lib/venues/merge.ts 입니다.** 여기 있는 것은
+ * 사본이므로 한쪽만 고치지 마세요 (CLAUDE.md §2 의 스키마 사본 규칙과 같습니다).
+ * 사본을 두는 이유는 private 오버레이가 없을 때도 이 스크립트가 돌아야 하기
+ * 때문입니다.
+ */
+function venueKey(nameOrId) {
+  return String(nameOrId)
+    .toLowerCase()
+    .replace(/[\s'’.\-_]/g, '');
+}
+
+/**
+ * private venue 의 id 에서 연도·사이클 접미사를 떼어 계열 키를 만듭니다.
+ * 'aaai-27' → aaai, 'kdd-2027-c2' → kdd. 't-ro' 처럼 숫자가 아닌 꼬리는 그대로입니다.
+ *
+ * **이름이 아니라 id 를 씁니다.** 이름 쪽은 "AAAI-27", "ACL 2027 (ARR 1월 사이클)",
+ * "KDD 2027 Cycle 2", "NSDI '27" 처럼 형태가 제각각이라, 끝의 네 자리 연도만 떼는
+ * 정규식으로는 51건 중 27건밖에 정규화되지 않았습니다(2026-10-01 실측). 그 결과로
+ * private 이 이미 덮고 있는 AAAI·ACL·KDD 가 "정보 없음"으로 잘못 분류됐습니다.
+ * id 는 전부 kebab-case 라 안정적이고, 추적 중인 30개 중 29개가 id 기준으로
+ * 연결됩니다 (연결되지 않는 하나는 COLING 이고 그것은 실제로 private 에도 없습니다).
+ */
+function seriesKeyFromId(id) {
+  return venueKey(String(id).replace(/-(?:19|20)?\d{2}(?:-.*)?$/, ''));
+}
+
+/**
+ * 같은 계열 안에서 회차를 구분하는 두 자리 연도.
+ * 'aaai-27' → '27', 'kdd-2027-c2' → '27', 2027 → '27', 'tmlr' → '' (상시 투고 저널).
+ *
+ * 네 자리로 맞추지 않고 두 자리로 줄이는 이유는, private 의 id 가 'aaai-27' 처럼
+ * 두 자리인 것과 'icra-2027' 처럼 네 자리인 것이 섞여 있어서입니다. 네 자리를
+ * 그대로 쓰면 private 의 'AAAI-27' 과 자동 수집분의 'AAAI 2027' 이 서로 다른
+ * 회차로 갈려 둘 다 목록에 남습니다.
+ */
+function seriesYear(idOrYear) {
+  return String(idOrYear).match(/(?:19|20)?(\d{2})(?:-[^-]*)?$/)?.[1] ?? '';
+}
+
+/**
+ * 트랙별 이모지. Slack 은 색을 쓸 수 없어서 색 대신 이모지로 분야를 구분합니다
+ * (private venues.json 의 tracks 에 적힌 색과 같은 역할입니다).
+ */
+const TRACK_EMOJI = {
+  ml: '🔵',
+  cv: '🟣',
+  nlp: '🟢',
+  app: '🟡',
+  rb: '🔴',
+  nw: '🟠',
+};
+
+/**
+ * aideadlines 의 category 를 우리 트랙으로 옮기는 표.
+ *
+ * **정본은 private 저장소의 src/lib/venues/merge.ts 의 CATEGORY_TO_TRACK 입니다.**
+ * 여기 있는 것은 사본이므로 한쪽만 고치지 마세요. 사본을 두는 이유는 private
+ * 오버레이가 없을 때도(= 자동 수집분과 수동 목록만으로 돌 때도) 트랙을 붙여야
+ * 하기 때문입니다.
+ *
+ * 임의로 정한 값이 아니라 private 시드의 기존 트랙 배정에서 역산한 것입니다.
+ * AAAI·IJCAI 가 app, COLT·AISTATS·UAI 가 ml, ICASSP·INTERSPEECH·WWW·KDD 가 app
+ * 인 것과 어긋나지 않습니다.
+ */
+const CATEGORY_TO_TRACK = {
+  ml_general: 'ml',
+  theory_stats: 'ml',
+  vision: 'cv',
+  nlp: 'nlp',
+  robotics: 'rb',
+  ai_general: 'app',
+  data_mining: 'app',
+  speech: 'app',
+  speech_audio: 'app',
+  multimedia: 'app',
+  web_ir: 'app',
+};
+
+/** private venue 레코드를 공통 형태로 옮깁니다. */
+function fromPrivateVenue(v) {
+  return {
+    seriesKey: seriesKeyFromId(v.id),
+    seriesYear: seriesYear(v.id),
+    name: v.name,
+    // private 은 track 을 직접 들고 있습니다 — 카테고리 변환이 필요 없습니다.
+    track: v.track,
+    kind: v.kind ?? 'conference',
+    confidence: v.confidence ?? 'confirmed',
+    url: v.url,
+    verifiedAt: v.verifiedAt ?? null,
+    origin: 'private',
+    events: (v.events ?? []).filter((e) => e?.type && e?.date),
+  };
+}
+
+/**
+ * 자동 수집분·수동 목록의 평평한 필드를 private 과 같은 events[] 형태로 옮깁니다.
+ *
+ * upstream(aideadlines) 스키마에는 초록·논문·통보 셋밖에 없습니다. 등록·보충·
+ * 리버털·최종본·커밋·저널 이전이 없는 것은 수집 실패가 아니라 스키마의 한계이고,
+ * 그 유형들은 private 쪽에만 있습니다.
+ */
+function fromRecord(c, category, origin) {
+  const events = [];
+  for (const [type, date] of [
+    ['abstract', c.abstract_deadline],
+    ['paper', c.deadline],
+    ['notification', c.notification],
+  ]) {
+    if (date) events.push({ type, date: String(date).slice(0, 10), label: '' });
+  }
+  return {
+    seriesKey: venueKey(c.name),
+    seriesYear: seriesYear(c.year ?? ''),
+    name: `${c.name}${c.year ? ` ${c.year}` : ''}`,
+    track: CATEGORY_TO_TRACK[category],
+    kind: 'conference',
+    // 자동 수집분·수동 목록에는 confidence 개념이 없습니다. "(추정)" 표시를
+    // 붙이지 않으려고 confirmed 로 둡니다 — 추정이라고 단정할 근거도 없습니다.
+    confidence: 'confirmed',
+    url: c.url,
+    verifiedAt: c.verified_on ?? null,
+    origin,
+    events,
+  };
+}
+
+/**
+ * 세 소스를 합쳐 정규화된 venue 목록을 만듭니다.
+ * 같은 계열·같은 회차면 우선순위가 높은 쪽(= 나중에 넣은 쪽)이 이깁니다.
+ *
+ * 병합 결과만 돌려주면 Gap 감지가 "private 에 레코드가 있었는가"를 알 수
+ * 없습니다 (private 이 이긴 경우와 애초에 없던 경우가 구별되지 않습니다).
+ * 그래서 원본 목록도 함께 넘깁니다.
+ */
+function collectSources() {
   const manual = readYaml(path.join(CONTENT, 'conferences.yaml'));
   const fetched = readJson(path.join(ROOT, 'src', 'data', 'conferences-fetched.json'));
 
-  const merged = new Map();
-  const key = (c) =>
-    `${String(c.name ?? '')
-      .trim()
-      .toLowerCase()}-${c.year ?? ''}`;
+  // 수동 목록(conferences[])에는 category 가 없습니다 — tags 만 있습니다. 그대로
+  // 두면 NeurIPS·ICLR·ICML·AISTATS·UAI 가 ml 이 아니라 기본값으로 떨어지므로,
+  // tracked_venues 에서 이름으로 카테고리를 역참조합니다.
+  const categoryByKey = new Map(
+    (manual.tracked_venues ?? [])
+      .filter((t) => t?.name && t?.category)
+      .map((t) => [venueKey(t.name), t.category]),
+  );
 
-  for (const c of fetched.venues ?? []) merged.set(key(c), c);
-  for (const c of manual.conferences ?? []) {
-    if (c?.name) merged.set(key(c), c);
+  const merged = new Map();
+  const put = (v) => merged.set(`${v.seriesKey}-${v.seriesYear}`, v);
+
+  for (const c of fetched.venues ?? []) {
+    if (c?.name) put(fromRecord(c, c.category, 'fetched'));
   }
-  return [...merged.values()];
+  for (const c of manual.conferences ?? []) {
+    if (c?.name) put(fromRecord(c, categoryByKey.get(venueKey(c.name)), 'manual'));
+  }
+
+  const privatePath = resolvePrivateVenuesPath();
+  const privateVenues = [];
+  if (privatePath) {
+    const raw = readJson(privatePath).venues ?? [];
+    for (const v of raw) {
+      if (!v?.id || !v?.name) continue;
+      const normalized = fromPrivateVenue(v);
+      privateVenues.push(normalized);
+      put(normalized);
+    }
+    console.log(
+      `  ${green('✓')} private venue ${dim(`${raw.length}건 · ${path.relative(ROOT, privatePath)}`)}`,
+    );
+  } else {
+    console.log(
+      `  ${yellow('!')} private venue 파일이 없어 자동 수집분과 수동 목록만 씁니다.`,
+    );
+    console.log(dim('    로컬: pnpm link:private · 워크플로: PRIVATE_REPO_PAT 시크릿'));
+  }
+
+  return {
+    venues: [...merged.values()],
+    privateVenues,
+    fetchedVenues: fetched.venues ?? [],
+    trackedVenues: manual.tracked_venues ?? [],
+  };
 }
 
-/** conferences.yaml 의 display.lookahead_days / tier_thresholds. 없으면 기본값. */
+/**
+ * 표시 대상 이벤트 유형과 한글 라벨. **여기 없는 유형은 건너뜁니다.**
+ *
+ * private 스키마(lab-os-private 의 src/lib/venues/schema.ts)의 EVENT_TYPES 열세
+ * 가지 중 아홉 가지만 올립니다. 빠뜨린 넷은 의도적입니다:
+ *   - review(리뷰 공개)·earlyReject(조기 탈락)는 받는 사람이 할 일이 없습니다.
+ *   - tutorial(튜토리얼 제안)은 투고와 성격이 다르고 해당 venue 가 한 곳뿐입니다.
+ *   - conference(개최)는 마감이 아니라 행사일이라 "마감" 목록에 섞이면 혼동됩니다.
+ *
+ * 처음에는 제출 계열 넷만 보냈습니다(schema.ts 의 ALERT_EVENT_TYPES). 통보·
+ * 리버털·최종본·커밋·저널 이전까지 올리는 쪽으로 2026-09-23 에 바꿨습니다 —
+ * 리버털 기간과 최종본 마감을 놓쳐서 뒤늦게 확인하는 일이 반복됐기 때문입니다.
+ */
+const EVENT_LABELS = {
+  registration: '등록 마감',
+  abstract: '초록 마감',
+  paper: '논문 마감',
+  supplementary: '보충 마감',
+  notification: '채택 통보',
+  cameraReady: '최종본 마감',
+  rebuttal: '리버털',
+  commitment: '커밋 마감',
+  transfer: '저널 이전 마감',
+};
+
+/** 제출 계열. 달마다 상한에 걸릴 때 이 유형을 먼저 남깁니다. */
+const SUBMISSION_TYPES = new Set(['registration', 'abstract', 'paper', 'supplementary']);
+
+/** conferences.yaml 의 display.lookahead_days / tier_thresholds.urgent. 없으면 기본값. */
 function getDisplayConfig() {
   const manual = readYaml(path.join(CONTENT, 'conferences.yaml'));
   const display = manual.display ?? {};
   return {
     lookaheadDays: display.lookahead_days ?? LOOKAHEAD_DAYS_FALLBACK,
-    tierThresholds: { ...TIER_THRESHOLDS_FALLBACK, ...(display.tier_thresholds ?? {}) },
+    urgentDays: display.tier_thresholds?.urgent ?? URGENT_DAYS_FALLBACK,
   };
 }
 
-/** 남은 일수가 어느 티어인지. 지난 마감이거나 future 경계보다 멀면 null(= 표시 안 함). */
-function tierOf(daysLeft, thresholds) {
-  if (daysLeft < 0) return null;
-  if (daysLeft <= thresholds.urgent) return 'urgent';
-  if (daysLeft <= thresholds.this_month) return 'this_month';
-  if (daysLeft <= thresholds.next_month) return 'next_month';
-  if (daysLeft <= thresholds.future) return 'future';
-  return null;
-}
-
-/** 학회 마감을 티어별로 묶습니다. 각 티어 안에서는 마감일 오름차순. */
-function tieredDeadlines(from) {
-  const { lookaheadDays, tierThresholds } = getDisplayConfig();
-  const groups = { urgent: [], this_month: [], next_month: [], future: [] };
-
-  for (const c of collectConferences()) {
-    const label = `${c.name}${c.year ? ` ${c.year}` : ''}`;
-    for (const [due, what] of [
-      [c.abstract_deadline, '초록'],
-      [c.deadline, '논문'],
-    ]) {
-      if (!due) continue;
+/**
+ * venue 목록을 이벤트 하나당 한 줄인 평평한 배열로 폅니다. 마감일 오름차순으로
+ * 정렬하고, 이미 지난 것과 lookahead 를 넘는 것은 버립니다.
+ *
+ * 추출과 묶기를 나눠 둡니다. 표현 방식(티어·월별)을 바꿀 때 추출 쪽을 건드리지
+ * 않아도 되고, Gap 감지처럼 묶기와 무관한 기능도 같은 배열을 씁니다.
+ *
+ * 남은 일수는 반드시 daysUntil() 로 구합니다. new Date(ev.date) 끼리 뺄셈하면
+ * 오프셋 없는 문자열이 실행 환경의 로컬 시간으로 해석되어 KST 와 UTC 러너의
+ * 결과가 달라지고, 마감일 당일 항목이 조용히 사라집니다 (CLAUDE.md §4).
+ */
+function flattenEvents(venues, from, lookaheadDays) {
+  const events = [];
+  for (const v of venues) {
+    for (const ev of v.events) {
+      const what = EVENT_LABELS[ev.type];
+      if (!what) continue;
+      const due = String(ev.date).slice(0, 10);
       const daysLeft = daysUntil(due, from);
-      if (daysLeft > lookaheadDays) continue;
-      const tier = tierOf(daysLeft, tierThresholds);
-      if (!tier) continue;
-      groups[tier].push({ label, what, due: String(due).slice(0, 10), daysLeft, url: c.url });
+      if (daysLeft < 0 || daysLeft > lookaheadDays) continue;
+      events.push({
+        venue: v.name,
+        type: ev.type,
+        what,
+        due,
+        daysLeft,
+        url: v.url,
+        track: v.track,
+        confidence: v.confidence,
+        origin: v.origin,
+        // 같은 venue 에 같은 유형이 둘 이상일 때 구분하려고 원본 label 을 남깁니다
+        // (WWW 의 full paper·short paper, INTERSPEECH 의 논문·수정본).
+        rawLabel: ev.label ?? '',
+      });
     }
   }
+  // 같은 venue 에 같은 유형이 둘 이상이면 일반 라벨만으로는 구분되지 않습니다.
+  // WWW 2027 은 full paper 와 short paper 가 각각 초록·논문 마감을 갖고,
+  // INTERSPEECH 2027 은 논문 마감과 수정본 마감이 모두 paper 이고, NeurIPS 2026 은
+  // 통보가 두 번입니다. 그대로 두면 같은 줄이 두 번 나온 것처럼 보이므로,
+  // **중복될 때만** 원본 label 로 바꿉니다 (중복이 없으면 짧은 라벨이 더 읽기 쉽습니다).
+  const occurrences = new Map();
+  for (const e of events) {
+    const key = `${e.venue}\u0000${e.type}`;
+    occurrences.set(key, (occurrences.get(key) ?? 0) + 1);
+  }
+  for (const e of events) {
+    if (e.rawLabel && occurrences.get(`${e.venue}\u0000${e.type}`) > 1) e.what = e.rawLabel;
+  }
 
-  for (const tier of TIER_ORDER) groups[tier].sort((a, b) => a.due.localeCompare(b.due));
-  return groups;
+  return events.sort((a, b) => a.due.localeCompare(b.due) || a.venue.localeCompare(b.venue));
+}
+
+/** verifiedAt 이 이 일수를 넘으면 재확인 대상입니다. */
+const STALE_DAYS = 60;
+// 전부 한꺼번에 낡는 날이 옵니다 (지금 private 의 verifiedAt 은 2026-09-09 와
+// 09-11 두 값뿐이라 같은 주에 51건이 동시에 넘어갑니다). 그때 섹션이 51줄이
+// 되지 않게 상한을 둡니다. 건수는 헤더에 그대로 남으므로 규모는 가려지지 않습니다.
+const MAX_GAPS = 8;
+
+/**
+ * 추적 중인 venue 가운데 **들고 있는 정보가 없거나 낡은** 것을 찾습니다.
+ *
+ * 판정 기준을 "정보의 유무와 신선도"로 좁혔습니다. 처음 설계에서는 "지금 낼 수
+ * 있는 마감이 남아 있는가"까지 조건에 넣었는데, 그러면 이번 사이클 마감이 지나고
+ * 다음 사이클 CFP 가 아직 안 뜬 **정상 상태**가 모두 걸립니다. 실제로 돌려 보니
+ * 추적 중인 30개 중 16개가 "남은 제출 마감 없음"으로 잡혀 매주 같은 줄이
+ * 반복됐고(2026-10-01 실측), 그 소음 속에서 정작 유일한 실제 공백인 COLING 이
+ * 묻혔습니다. 확인하러 갈 사람에게 필요한 신호는 "우리 데이터가 비었거나 낡았다"
+ * 쪽이므로 그것만 봅니다.
+ *
+ * STALE_DAYS 는 private 저장소 merge.ts 의 STALE_DAYS 와 같은 60 입니다.
+ * 신선도의 정의를 저장소 양쪽에서 하나로 유지합니다 (content/venues/README.md
+ * 의 "verifiedAt 이 60일을 넘으면 재확인 대상" 과도 같은 값입니다).
+ */
+function detectGaps({ trackedVenues, privateVenues, fetchedVenues }, from) {
+  const privateByKey = new Map();
+  for (const v of privateVenues) {
+    const bucket = privateByKey.get(v.seriesKey);
+    if (bucket) bucket.push(v);
+    else privateByKey.set(v.seriesKey, [v]);
+  }
+  const fetchedKeys = new Set((fetchedVenues ?? []).filter((c) => c?.name).map((c) => venueKey(c.name)));
+
+  const gaps = [];
+  for (const tracked of trackedVenues) {
+    if (!tracked?.name) continue;
+    const key = venueKey(tracked.name);
+    const candidates = privateByKey.get(key) ?? [];
+
+    if (candidates.length === 0) {
+      // upstream 이 덮고 있으면 공백이 아닙니다. private 에 없다는 사실만으로는
+      // 사람이 확인하러 갈 이유가 되지 않습니다.
+      if (fetchedKeys.has(key)) continue;
+      gaps.push({ name: tracked.name, status: 'upstream·private 모두 정보 없음' });
+      continue;
+    }
+
+    // 같은 계열의 여러 회차가 있으면 가장 최근에 확인한 것을 기준으로 봅니다.
+    const freshest = candidates.reduce((a, b) =>
+      String(b.verifiedAt ?? '') > String(a.verifiedAt ?? '') ? b : a,
+    );
+    const ageDays = freshest.verifiedAt ? -daysUntil(freshest.verifiedAt, from) : null;
+    if (ageDays === null) {
+      gaps.push({ name: tracked.name, url: freshest.url, status: '확인한 날짜가 적혀 있지 않음' });
+    } else if (ageDays > STALE_DAYS) {
+      gaps.push({
+        name: tracked.name,
+        url: freshest.url,
+        status: `마지막 확인 ${freshest.verifiedAt} (${ageDays}일 전)`,
+      });
+    }
+  }
+  return gaps;
 }
 
 // ─── 2. Workshop (수동 관리) ─────────────────────────────────
@@ -258,7 +583,124 @@ function eventTimeLabel(e) {
   return e.time ? `${date} ${e.time}` : `${date} 종일`;
 }
 
-function buildMessage(deadlinesByTier, workshops, events, from) {
+/** 'YYYY-MM-DD' → '10/8(목)'. 일정 쪽과 같은 이유로 로케일 포맷터를 쓰지 않습니다. */
+function dueLabel(due) {
+  const [y, m, d] = due.split('-').map(Number);
+  const weekday = WEEKDAY_KO[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+  return `${m}/${d}(${weekday})`;
+}
+
+/**
+ * 마감일 오름차순인 배열을 달 단위로 묶습니다. Map 이라 넣은 순서가 유지되므로
+ * 월 순서도 그대로 오름차순입니다.
+ *
+ * 월 이름은 날짜 문자열에서 직접 만듭니다. new Date(due).getMonth() 는 실행
+ * 환경의 시간대에 따라 1일이 전달로 밀립니다 (CLAUDE.md §4).
+ */
+function groupByMonth(events) {
+  const months = new Map();
+  for (const e of events) {
+    const [year, month] = e.due.split('-');
+    const key = `${year}년 ${Number(month)}월`;
+    const bucket = months.get(key);
+    if (bucket) bucket.push(e);
+    else months.set(key, [e]);
+  }
+  return months;
+}
+
+/**
+ * 한 달의 이벤트에서 표시할 것을 고릅니다. 상한 안에 들면 그대로 돌려줍니다.
+ *
+ * 이벤트 유형을 아홉 가지로 늘린 뒤로는 통보·리버털·최종본이 제출 마감을 상한
+ * 밖으로 밀어내는 일이 생깁니다. 지금 투고를 준비하는 사람에게 필요한 것은
+ * 제출 마감이므로 그쪽을 먼저 남기고, 고른 뒤에는 다시 날짜순으로 되돌립니다
+ * (읽을 때는 달력 순서가 자연스럽기 때문입니다).
+ */
+function pickForMonth(monthEvents) {
+  if (monthEvents.length <= MAX_PER_MONTH) return monthEvents;
+  return [...monthEvents]
+    .sort((a, b) => {
+      const submissionFirst =
+        Number(SUBMISSION_TYPES.has(b.type)) - Number(SUBMISSION_TYPES.has(a.type));
+      return submissionFirst || a.due.localeCompare(b.due);
+    })
+    .slice(0, MAX_PER_MONTH)
+    .sort((a, b) => a.due.localeCompare(b.due) || a.venue.localeCompare(b.venue));
+}
+
+function eventRow(e, lead) {
+  const name = e.url ? `<${e.url}|${e.venue}>` : e.venue;
+  // 트랙을 모르는 경우(매핑에 없는 category, tracked_venues 에 없는 수동 항목)는
+  // ⚪ 로 둡니다. 추측해서 아무 트랙에 넣지 않습니다 (CLAUDE.md §2 "본문 작성").
+  const track = TRACK_EMOJI[e.track] ?? '⚪';
+  // confidence=estimated 는 공식 CFP 게시 전 추정치입니다. private venues.json 의
+  // note 가 "UI에서 반드시 시각적으로 구분할 것"이라고 못박아 둔 부분입니다 —
+  // 추정 날짜를 확정으로 읽고 투고 계획을 세우면 그대로 사고가 됩니다.
+  const estimated = e.confidence === 'estimated' ? ' (추정)' : '';
+  return `· ${lead} ${track} ${name} ${e.what}${estimated}`;
+}
+
+/**
+ * 하이브리드 표현: 임박한 것은 위에 따로 모으고, 나머지는 월별로 묶습니다.
+ *
+ * 티어 그룹핑(긴급/이번 달/다음 달/그 이후)을 대신합니다. 티어 이름은 경계가
+ * 상대적이라 "다음 달"이 실제로 몇 월인지 읽는 사람이 세어 봐야 했고, D-61 과
+ * D-180 이 똑같이 "그 이후"에 들어가 멀리 있는 일정 사이의 간격이 보이지
+ * 않았습니다. 달 이름을 그대로 쓰면 투고 계획을 달 단위로 읽을 수 있습니다.
+ */
+function renderTimeline(events, urgentDays) {
+  const lines = [];
+  const urgent = events.filter((e) => e.daysLeft <= urgentDays);
+  const later = events.filter((e) => e.daysLeft > urgentDays);
+
+  // 임박 구간은 접지 않습니다. 당장 손을 써야 하는 것을 "그 외 N건"으로 숨기면
+  // 이 섹션을 따로 둔 의미가 없어집니다.
+  if (urgent.length > 0) {
+    lines.push(`🚨 *임박 마감 (D-${urgentDays} 이내, ${urgent.length}건)*`);
+    for (const e of urgent) {
+      lines.push(eventRow(e, `\`${ddayLabel(e.daysLeft)}\` ${dueLabel(e.due)}`));
+    }
+  }
+
+  if (later.length > 0) {
+    if (lines.length > 0) lines.push('');
+    lines.push('📆 *학회 타임라인*');
+    for (const [month, monthEvents] of groupByMonth(later)) {
+      lines.push('', `▸ *${month}* (${monthEvents.length}건)`);
+      const shown = pickForMonth(monthEvents);
+      for (const e of shown) {
+        lines.push(eventRow(e, `${dueLabel(e.due)} \`${ddayLabel(e.daysLeft)}\``));
+      }
+      // 접은 것을 볼 수 있는 화면을 아직 안내하지 못합니다. /internal/deadlines 는
+      // conferences.yaml 과 자동 수집분만 읽어서 private venue 를 모르고,
+      // 그것을 보여 줄 대시보드는 Phase 3 입니다. 없는 곳으로 안내하지 않습니다.
+      const rest = monthEvents.length - shown.length;
+      if (rest > 0) lines.push(`· 그 외 ${rest}건 생략`);
+    }
+  }
+
+  return lines;
+}
+
+/**
+ * 확인이 필요한 venue. 비어 있으면 섹션째 생략합니다 — "확인 필요 (0건)"이 매주
+ * 뜨면 그 자체가 소음이고, 이 섹션은 비어 있는 것이 정상 상태입니다.
+ */
+function renderGaps(gaps) {
+  const lines = [`🔍 *확인 필요 (${gaps.length}건)*`];
+  for (const gap of gaps.slice(0, MAX_GAPS)) {
+    const name = gap.url ? `<${gap.url}|${gap.name}>` : gap.name;
+    lines.push(`· ${name} — ${gap.status}`);
+  }
+  const rest = gaps.length - Math.min(gaps.length, MAX_GAPS);
+  if (rest > 0) {
+    lines.push(`· 그 외 ${rest}건도 재확인 대상입니다 (private 저장소의 venues.json 참조)`);
+  }
+  return lines;
+}
+
+function buildMessage(deadlineEvents, urgentDays, gaps, workshops, events, from) {
   const week = from.toLocaleDateString('ko-KR', {
     year: 'numeric',
     month: 'long',
@@ -278,25 +720,15 @@ function buildMessage(deadlinesByTier, workshops, events, from) {
     }
   }
 
-  // 티어별로 묶어서 보여줍니다. 빈 티어는 아예 줄을 만들지 않습니다 — "긴급 (0건)"처럼
-  // 빈 헤더가 매주 반복되면 아무도 안 읽는 잡음이 됩니다.
-  lines.push('', '*학회 마감*');
-  const totalDeadlines = TIER_ORDER.reduce((sum, tier) => sum + deadlinesByTier[tier].length, 0);
-  if (totalDeadlines === 0) {
-    lines.push('· 임박한 학회 마감이 없습니다.');
+  lines.push('');
+  if (deadlineEvents.length === 0) {
+    lines.push('*학회 마감*', '· 임박한 학회 마감이 없습니다.');
   } else {
-    for (const tier of TIER_ORDER) {
-      const items = deadlinesByTier[tier];
-      if (items.length === 0) continue;
-      lines.push(`_${TIER_LABEL[tier]}_ (${items.length}건)`);
-      const shown = items.slice(0, MAX_PER_TIER);
-      for (const d of shown) {
-        const name = d.url ? `<${d.url}|${d.label}>` : d.label;
-        lines.push(`· \`${ddayLabel(d.daysLeft)}\` ${name} ${d.what} 마감 — ${d.due}`);
-      }
-      const rest = items.length - shown.length;
-      if (rest > 0) lines.push(`· 그 외 ${rest}개는 사이트 참조 (/calendar)`);
-    }
+    lines.push(...renderTimeline(deadlineEvents, urgentDays));
+  }
+
+  if (gaps.length > 0) {
+    lines.push('', ...renderGaps(gaps));
   }
 
   // 없거나 비어 있으면 섹션째 생략합니다 — workshops.yaml은 수동 관리라 안 채워둔
@@ -403,15 +835,22 @@ async function main() {
 
   const from = new Date();
   logRunTiming(from);
-  const deadlinesByTier = tieredDeadlines(from);
-  const deadlineCount = TIER_ORDER.reduce((sum, tier) => sum + deadlinesByTier[tier].length, 0);
-  console.log(`  ${green('✓')} 마감 ${dim(`${deadlineCount}건 (티어별 그룹핑)`)}`);
+  const { lookaheadDays, urgentDays } = getDisplayConfig();
+  const sources = collectSources();
+  const deadlineEvents = flattenEvents(sources.venues, from, lookaheadDays);
+  console.log(`  ${green('✓')} 마감 ${dim(`${deadlineEvents.length}건 (앞으로 ${lookaheadDays}일)`)}`);
+
+  const gaps = detectGaps(sources, from);
+  console.log(
+    `  ${gaps.length > 0 ? yellow('!') : green('✓')} 확인 필요 ` +
+      dim(`${gaps.length}건 / 추적 ${sources.trackedVenues.length}건`),
+  );
 
   const workshops = upcomingWorkshops(from);
   console.log(`  ${green('✓')} Workshop ${dim(`${workshops.length}건`)}`);
 
   const events = await upcomingLabEvents(from);
-  const message = buildMessage(deadlinesByTier, workshops, events, from);
+  const message = buildMessage(deadlineEvents, urgentDays, gaps, workshops, events, from);
 
   console.log(`\n${dim('─'.repeat(24))}`);
   console.log(message);
