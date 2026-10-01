@@ -273,11 +273,33 @@ function collectVenues() {
   return [...merged.values()];
 }
 
-/** 표시 대상 이벤트 유형과 한글 라벨. 여기 없는 유형은 건너뜁니다. */
+/**
+ * 표시 대상 이벤트 유형과 한글 라벨. **여기 없는 유형은 건너뜁니다.**
+ *
+ * private 스키마(lab-os-private 의 src/lib/venues/schema.ts)의 EVENT_TYPES 열세
+ * 가지 중 아홉 가지만 올립니다. 빠뜨린 넷은 의도적입니다:
+ *   - review(리뷰 공개)·earlyReject(조기 탈락)는 받는 사람이 할 일이 없습니다.
+ *   - tutorial(튜토리얼 제안)은 투고와 성격이 다르고 해당 venue 가 한 곳뿐입니다.
+ *   - conference(개최)는 마감이 아니라 행사일이라 "마감" 목록에 섞이면 혼동됩니다.
+ *
+ * 처음에는 제출 계열 넷만 보냈습니다(schema.ts 의 ALERT_EVENT_TYPES). 통보·
+ * 리버털·최종본·커밋·저널 이전까지 올리는 쪽으로 2026-09-23 에 바꿨습니다 —
+ * 리버털 기간과 최종본 마감을 놓쳐서 뒤늦게 확인하는 일이 반복됐기 때문입니다.
+ */
 const EVENT_LABELS = {
+  registration: '등록 마감',
   abstract: '초록 마감',
   paper: '논문 마감',
+  supplementary: '보충 마감',
+  notification: '채택 통보',
+  cameraReady: '최종본 마감',
+  rebuttal: '리버털',
+  commitment: '커밋 마감',
+  transfer: '저널 이전 마감',
 };
+
+/** 제출 계열. 달마다 상한에 걸릴 때 이 유형을 먼저 남깁니다. */
+const SUBMISSION_TYPES = new Set(['registration', 'abstract', 'paper', 'supplementary']);
 
 /** conferences.yaml 의 display.lookahead_days / tier_thresholds.urgent. 없으면 기본값. */
 function getDisplayConfig() {
@@ -324,6 +346,20 @@ function flattenEvents(venues, from, lookaheadDays) {
       });
     }
   }
+  // 같은 venue 에 같은 유형이 둘 이상이면 일반 라벨만으로는 구분되지 않습니다.
+  // WWW 2027 은 full paper 와 short paper 가 각각 초록·논문 마감을 갖고,
+  // INTERSPEECH 2027 은 논문 마감과 수정본 마감이 모두 paper 이고, NeurIPS 2026 은
+  // 통보가 두 번입니다. 그대로 두면 같은 줄이 두 번 나온 것처럼 보이므로,
+  // **중복될 때만** 원본 label 로 바꿉니다 (중복이 없으면 짧은 라벨이 더 읽기 쉽습니다).
+  const occurrences = new Map();
+  for (const e of events) {
+    const key = `${e.venue}\u0000${e.type}`;
+    occurrences.set(key, (occurrences.get(key) ?? 0) + 1);
+  }
+  for (const e of events) {
+    if (e.rawLabel && occurrences.get(`${e.venue}\u0000${e.type}`) > 1) e.what = e.rawLabel;
+  }
+
   return events.sort((a, b) => a.due.localeCompare(b.due) || a.venue.localeCompare(b.venue));
 }
 
@@ -445,6 +481,26 @@ function groupByMonth(events) {
   return months;
 }
 
+/**
+ * 한 달의 이벤트에서 표시할 것을 고릅니다. 상한 안에 들면 그대로 돌려줍니다.
+ *
+ * 이벤트 유형을 아홉 가지로 늘린 뒤로는 통보·리버털·최종본이 제출 마감을 상한
+ * 밖으로 밀어내는 일이 생깁니다. 지금 투고를 준비하는 사람에게 필요한 것은
+ * 제출 마감이므로 그쪽을 먼저 남기고, 고른 뒤에는 다시 날짜순으로 되돌립니다
+ * (읽을 때는 달력 순서가 자연스럽기 때문입니다).
+ */
+function pickForMonth(monthEvents) {
+  if (monthEvents.length <= MAX_PER_MONTH) return monthEvents;
+  return [...monthEvents]
+    .sort((a, b) => {
+      const submissionFirst =
+        Number(SUBMISSION_TYPES.has(b.type)) - Number(SUBMISSION_TYPES.has(a.type));
+      return submissionFirst || a.due.localeCompare(b.due);
+    })
+    .slice(0, MAX_PER_MONTH)
+    .sort((a, b) => a.due.localeCompare(b.due) || a.venue.localeCompare(b.venue));
+}
+
 function eventRow(e, lead) {
   const name = e.url ? `<${e.url}|${e.venue}>` : e.venue;
   return `· ${lead} ${name} ${e.what}`;
@@ -477,7 +533,7 @@ function renderTimeline(events, urgentDays) {
     lines.push('📆 *학회 타임라인*');
     for (const [month, monthEvents] of groupByMonth(later)) {
       lines.push('', `▸ *${month}* (${monthEvents.length}건)`);
-      const shown = monthEvents.slice(0, MAX_PER_MONTH);
+      const shown = pickForMonth(monthEvents);
       for (const e of shown) {
         lines.push(eventRow(e, `${dueLabel(e.due)} \`${ddayLabel(e.daysLeft)}\``));
       }
