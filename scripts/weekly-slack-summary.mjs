@@ -101,26 +101,183 @@ function ddayLabel(daysLeft) {
 
 // ─── 1. 학회 마감 ────────────────────────────────────────────
 
-/**
- * 자동 수집 캐시 + 수동 목록. 같은 학회·연도면 수동이 이깁니다
- * (src/lib/deadlines.ts 의 getConferences() 와 같은 규칙).
+/*
+ * 마감 정보의 소스는 셋이고, 우선순위는 **private > 수동 > 자동 수집** 입니다.
+ *
+ * private 오버레이(lab-os-private)의 content/venues/venues.json 은 사람이 공식 CFP를
+ * 보고 채운 것이라 confidence·source·verifiedAt 을 함께 들고 있습니다. 수동 목록
+ * (content/conferences.yaml 의 conferences[])은 verified_by 가 비어 있는 초안이
+ * 대부분이고, 자동 수집분은 upstream 에 레코드가 없으면 아예 비어 있습니다.
+ *
+ * 2026-09-23 진단: 추적 중인 30개 중 upstream(aideadlines)에 2027 사이클 레코드가
+ * 있는 것은 7개뿐이었습니다 (AAAI·ICLR·ICRA·NAACL·WACV·WSDM·WWW). CVPR 2027·
+ * ICCV 2027·ACL 2027·KDD 2027 을 포함해 25개 이상이 통째로 빠져 있었습니다.
+ * private 을 가장 높게 두는 이유가 이것입니다.
+ *
+ * ⚠️ content/conferences.yaml 의 "수동 목록이 자동 수집분을 덮어쓴다"는 설명은
+ *    사이트(src/lib/deadlines.ts)에서는 그대로 맞습니다. 다만 이 스크립트에서는
+ *    그 위에 private 이 한 겹 더 올라갑니다.
+ *
+ * ⚠️ private 을 읽어도 공개 배포본과는 무관합니다. 이 스크립트는 dist/ 를 만들지
+ *    않고 읽어서 Slack 에 보내기만 합니다 (워크플로의 GCAL_ICAL_LAB_GENERAL 과
+ *    같은 논리입니다 — weekly-summary.yml 주석 참고). 다만 그 전제는 Webhook 채널이
+ *    랩 내부 전용이라는 것이고, 그것은 이 파일 맨 위에 적어 둔 그대로입니다.
  */
-function collectConferences() {
+
+/**
+ * private venues.json 을 찾습니다. 없으면 undefined 를 반환하고, 호출부가
+ * 자동 수집분과 수동 목록만으로 계속 진행합니다 — private 오버레이가 없다고
+ * 요약이 안 나가면 안 됩니다.
+ *
+ * 후보 순서:
+ *   1. PRIVATE_VENUES_PATH — 명시적으로 지정했을 때
+ *   2. .private/content/... — 로컬 심볼릭 링크 (pnpm link:private)
+ *   3. lab-os-private/content/... — 워크플로의 actions/checkout path
+ *
+ * 3번이 ROOT 의 **하위**인 것에 주의하세요. actions/checkout 의 path 는
+ * $GITHUB_WORKSPACE 기준이고 이 저장소도 거기에 체크아웃되므로, 형제 경로인
+ * ROOT/../lab-os-private 는 러너에 존재하지 않습니다.
+ */
+function resolvePrivateVenuesPath() {
+  const candidates = [
+    process.env.PRIVATE_VENUES_PATH?.trim(),
+    path.join(ROOT, '.private', 'content', 'venues', 'venues.json'),
+    path.join(ROOT, 'lab-os-private', 'content', 'venues', 'venues.json'),
+  ].filter(Boolean);
+  return candidates.find((candidate) => fs.existsSync(candidate));
+}
+
+/**
+ * 대조용 키. 대소문자·공백·하이픈·아포스트로피·마침표를 지웁니다.
+ * 'ACM MM' 과 'acm-mm', "NSDI '27" 과 'NSDI 27' 이 같은 venue 로 붙습니다.
+ *
+ * **정본은 private 저장소의 src/lib/venues/merge.ts 입니다.** 여기 있는 것은
+ * 사본이므로 한쪽만 고치지 마세요 (CLAUDE.md §2 의 스키마 사본 규칙과 같습니다).
+ * 사본을 두는 이유는 private 오버레이가 없을 때도 이 스크립트가 돌아야 하기
+ * 때문입니다.
+ */
+function venueKey(nameOrId) {
+  return String(nameOrId)
+    .toLowerCase()
+    .replace(/[\s'’.\-_]/g, '');
+}
+
+/**
+ * private venue 의 id 에서 연도·사이클 접미사를 떼어 계열 키를 만듭니다.
+ * 'aaai-27' → aaai, 'kdd-2027-c2' → kdd. 't-ro' 처럼 숫자가 아닌 꼬리는 그대로입니다.
+ *
+ * **이름이 아니라 id 를 씁니다.** 이름 쪽은 "AAAI-27", "ACL 2027 (ARR 1월 사이클)",
+ * "KDD 2027 Cycle 2", "NSDI '27" 처럼 형태가 제각각이라, 끝의 네 자리 연도만 떼는
+ * 정규식으로는 51건 중 27건밖에 정규화되지 않았습니다(2026-10-01 실측). 그 결과로
+ * private 이 이미 덮고 있는 AAAI·ACL·KDD 가 "정보 없음"으로 잘못 분류됐습니다.
+ * id 는 전부 kebab-case 라 안정적이고, 추적 중인 30개 중 29개가 id 기준으로
+ * 연결됩니다 (연결되지 않는 하나는 COLING 이고 그것은 실제로 private 에도 없습니다).
+ */
+function seriesKeyFromId(id) {
+  return venueKey(String(id).replace(/-(?:19|20)?\d{2}(?:-.*)?$/, ''));
+}
+
+/**
+ * 같은 계열 안에서 회차를 구분하는 두 자리 연도.
+ * 'aaai-27' → '27', 'kdd-2027-c2' → '27', 2027 → '27', 'tmlr' → '' (상시 투고 저널).
+ *
+ * 네 자리로 맞추지 않고 두 자리로 줄이는 이유는, private 의 id 가 'aaai-27' 처럼
+ * 두 자리인 것과 'icra-2027' 처럼 네 자리인 것이 섞여 있어서입니다. 네 자리를
+ * 그대로 쓰면 private 의 'AAAI-27' 과 자동 수집분의 'AAAI 2027' 이 서로 다른
+ * 회차로 갈려 둘 다 목록에 남습니다.
+ */
+function seriesYear(idOrYear) {
+  return String(idOrYear).match(/(?:19|20)?(\d{2})(?:-[^-]*)?$/)?.[1] ?? '';
+}
+
+/** private venue 레코드를 공통 형태로 옮깁니다. */
+function fromPrivateVenue(v) {
+  return {
+    seriesKey: seriesKeyFromId(v.id),
+    seriesYear: seriesYear(v.id),
+    name: v.name,
+    kind: v.kind ?? 'conference',
+    confidence: v.confidence ?? 'confirmed',
+    url: v.url,
+    verifiedAt: v.verifiedAt ?? null,
+    origin: 'private',
+    events: (v.events ?? []).filter((e) => e?.type && e?.date),
+  };
+}
+
+/**
+ * 자동 수집분·수동 목록의 평평한 필드를 private 과 같은 events[] 형태로 옮깁니다.
+ *
+ * upstream(aideadlines) 스키마에는 초록·논문·통보 셋밖에 없습니다. 등록·보충·
+ * 리버털·최종본·커밋·저널 이전이 없는 것은 수집 실패가 아니라 스키마의 한계이고,
+ * 그 유형들은 private 쪽에만 있습니다.
+ */
+function fromRecord(c, origin) {
+  const events = [];
+  for (const [type, date] of [
+    ['abstract', c.abstract_deadline],
+    ['paper', c.deadline],
+    ['notification', c.notification],
+  ]) {
+    if (date) events.push({ type, date: String(date).slice(0, 10), label: '' });
+  }
+  return {
+    seriesKey: venueKey(c.name),
+    seriesYear: seriesYear(c.year ?? ''),
+    name: `${c.name}${c.year ? ` ${c.year}` : ''}`,
+    kind: 'conference',
+    // 자동 수집분·수동 목록에는 confidence 개념이 없습니다. "(추정)" 표시를
+    // 붙이지 않으려고 confirmed 로 둡니다 — 추정이라고 단정할 근거도 없습니다.
+    confidence: 'confirmed',
+    url: c.url,
+    verifiedAt: c.verified_on ?? null,
+    origin,
+    events,
+  };
+}
+
+/**
+ * 세 소스를 합쳐 정규화된 venue 목록을 만듭니다.
+ * 같은 계열·같은 회차면 우선순위가 높은 쪽(= 나중에 넣은 쪽)이 이깁니다.
+ */
+function collectVenues() {
   const manual = readYaml(path.join(CONTENT, 'conferences.yaml'));
   const fetched = readJson(path.join(ROOT, 'src', 'data', 'conferences-fetched.json'));
 
   const merged = new Map();
-  const key = (c) =>
-    `${String(c.name ?? '')
-      .trim()
-      .toLowerCase()}-${c.year ?? ''}`;
+  const put = (v) => merged.set(`${v.seriesKey}-${v.seriesYear}`, v);
 
-  for (const c of fetched.venues ?? []) merged.set(key(c), c);
-  for (const c of manual.conferences ?? []) {
-    if (c?.name) merged.set(key(c), c);
+  for (const c of fetched.venues ?? []) {
+    if (c?.name) put(fromRecord(c, 'fetched'));
   }
+  for (const c of manual.conferences ?? []) {
+    if (c?.name) put(fromRecord(c, 'manual'));
+  }
+
+  const privatePath = resolvePrivateVenuesPath();
+  if (privatePath) {
+    const venues = readJson(privatePath).venues ?? [];
+    for (const v of venues) {
+      if (v?.id && v?.name) put(fromPrivateVenue(v));
+    }
+    console.log(
+      `  ${green('✓')} private venue ${dim(`${venues.length}건 · ${path.relative(ROOT, privatePath)}`)}`,
+    );
+  } else {
+    console.log(
+      `  ${yellow('!')} private venue 파일이 없어 자동 수집분과 수동 목록만 씁니다.`,
+    );
+    console.log(dim('    로컬: pnpm link:private · 워크플로: PRIVATE_REPO_PAT 시크릿'));
+  }
+
   return [...merged.values()];
 }
+
+/** 표시 대상 이벤트 유형과 한글 라벨. 여기 없는 유형은 건너뜁니다. */
+const EVENT_LABELS = {
+  abstract: '초록 마감',
+  paper: '논문 마감',
+};
 
 /** conferences.yaml 의 display.lookahead_days / tier_thresholds. 없으면 기본값. */
 function getDisplayConfig() {
@@ -147,18 +304,16 @@ function tieredDeadlines(from) {
   const { lookaheadDays, tierThresholds } = getDisplayConfig();
   const groups = { urgent: [], this_month: [], next_month: [], future: [] };
 
-  for (const c of collectConferences()) {
-    const label = `${c.name}${c.year ? ` ${c.year}` : ''}`;
-    for (const [due, what] of [
-      [c.abstract_deadline, '초록'],
-      [c.deadline, '논문'],
-    ]) {
-      if (!due) continue;
+  for (const v of collectVenues()) {
+    for (const ev of v.events) {
+      const what = EVENT_LABELS[ev.type];
+      if (!what) continue;
+      const due = String(ev.date).slice(0, 10);
       const daysLeft = daysUntil(due, from);
       if (daysLeft > lookaheadDays) continue;
       const tier = tierOf(daysLeft, tierThresholds);
       if (!tier) continue;
-      groups[tier].push({ label, what, due: String(due).slice(0, 10), daysLeft, url: c.url });
+      groups[tier].push({ label: v.name, what, due, daysLeft, url: v.url });
     }
   }
 
@@ -292,7 +447,7 @@ function buildMessage(deadlinesByTier, workshops, events, from) {
       const shown = items.slice(0, MAX_PER_TIER);
       for (const d of shown) {
         const name = d.url ? `<${d.url}|${d.label}>` : d.label;
-        lines.push(`· \`${ddayLabel(d.daysLeft)}\` ${name} ${d.what} 마감 — ${d.due}`);
+        lines.push(`· \`${ddayLabel(d.daysLeft)}\` ${name} ${d.what} — ${d.due}`);
       }
       const rest = items.length - shown.length;
       if (rest > 0) lines.push(`· 그 외 ${rest}개는 사이트 참조 (/calendar)`);
