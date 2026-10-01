@@ -10,9 +10,10 @@
  * 담는 것:
  *   1. 앞으로 7일간의 랩 일정 (제목·날짜·시각)
  *   2. 앞으로 180일(conferences.yaml 의 display.lookahead_days) 이내 학회 마감
- *      (수동 목록 + 자동 수집 캐시를 합친 것), 티어별(긴급/이번 달/다음 달/그 이후)로
- *      묶어서 보여줍니다. 티어 하나에 5건 넘게 있으면 나머지는 "그 외 N개는
- *      사이트 참조"로 접습니다 — 그래야 학회 30개를 추적해도 메시지가 안 길어집니다.
+ *      (private 오버레이 + 수동 목록 + 자동 수집 캐시를 합친 것). 표현은 하이브리드로,
+ *      D-14 이내는 "🚨 임박 마감"에 따로 모으고 나머지는 "📆 학회 타임라인"에서
+ *      월별로 묶습니다. 한 달에 5건이 넘으면 나머지는 접습니다 — 그래야 학회 30개를
+ *      추적해도 메시지가 안 길어집니다.
  *   3. content/workshops.yaml 에 적힌 workshop (있을 때만 — 학회와 달리 자동
  *      수집하지 않는 수동 목록이라, 비어 있으면 이 섹션은 아예 안 뜹니다)
  *
@@ -58,14 +59,13 @@ const EVENT_HORIZON_DAYS = 7;
 const TIMEOUT_MS = 15_000;
 const DRY_RUN = process.argv.includes('--dry-run');
 
-// 티어 경계·순서는 content/conferences.yaml 의 display.tier_thresholds 와 같은
-// 기본값입니다 (src/lib/deadlines.ts 의 DISPLAY_FALLBACK과 동일하게 유지하세요).
-const TIER_ORDER = ['urgent', 'this_month', 'next_month', 'future'];
-const TIER_LABEL = { urgent: '긴급', this_month: '이번 달', next_month: '다음 달', future: '그 이후' };
-const TIER_THRESHOLDS_FALLBACK = { urgent: 14, this_month: 30, next_month: 60, future: 180 };
+// "임박"의 경계는 content/conferences.yaml 의 display.tier_thresholds.urgent 를
+// 그대로 씁니다. 사이트의 긴급 배지(src/lib/deadlines.ts)와 같은 값을 보게 해서,
+// Slack 에서 임박이라고 본 것이 사이트에서도 긴급으로 보이도록 맞춥니다.
+const URGENT_DAYS_FALLBACK = 14;
 const LOOKAHEAD_DAYS_FALLBACK = 180;
-// 티어 하나에 너무 많이 쌓이면 메시지가 길어져 아무도 안 읽습니다.
-const MAX_PER_TIER = 5;
+// 한 달에 너무 많이 쌓이면 메시지가 길어져 아무도 안 읽습니다.
+const MAX_PER_MONTH = 5;
 
 /** CORE_SCHEMA 로 파싱해 날짜를 문자열로 남깁니다 (src/lib/yaml.ts 와 같은 이유). */
 function parseYaml(source) {
@@ -279,24 +279,14 @@ const EVENT_LABELS = {
   paper: '논문 마감',
 };
 
-/** conferences.yaml 의 display.lookahead_days / tier_thresholds. 없으면 기본값. */
+/** conferences.yaml 의 display.lookahead_days / tier_thresholds.urgent. 없으면 기본값. */
 function getDisplayConfig() {
   const manual = readYaml(path.join(CONTENT, 'conferences.yaml'));
   const display = manual.display ?? {};
   return {
     lookaheadDays: display.lookahead_days ?? LOOKAHEAD_DAYS_FALLBACK,
-    tierThresholds: { ...TIER_THRESHOLDS_FALLBACK, ...(display.tier_thresholds ?? {}) },
+    urgentDays: display.tier_thresholds?.urgent ?? URGENT_DAYS_FALLBACK,
   };
-}
-
-/** 남은 일수가 어느 티어인지. 지난 마감이거나 future 경계보다 멀면 null(= 표시 안 함). */
-function tierOf(daysLeft, thresholds) {
-  if (daysLeft < 0) return null;
-  if (daysLeft <= thresholds.urgent) return 'urgent';
-  if (daysLeft <= thresholds.this_month) return 'this_month';
-  if (daysLeft <= thresholds.next_month) return 'next_month';
-  if (daysLeft <= thresholds.future) return 'future';
-  return null;
 }
 
 /**
@@ -335,18 +325,6 @@ function flattenEvents(venues, from, lookaheadDays) {
     }
   }
   return events.sort((a, b) => a.due.localeCompare(b.due) || a.venue.localeCompare(b.venue));
-}
-
-/** 학회 마감을 티어별로 묶습니다. 각 티어 안에서는 마감일 오름차순. */
-function tieredDeadlines(from) {
-  const { lookaheadDays, tierThresholds } = getDisplayConfig();
-  const groups = { urgent: [], this_month: [], next_month: [], future: [] };
-
-  for (const e of flattenEvents(collectVenues(), from, lookaheadDays)) {
-    const tier = tierOf(e.daysLeft, tierThresholds);
-    if (tier) groups[tier].push(e);
-  }
-  return groups;
 }
 
 // ─── 2. Workshop (수동 관리) ─────────────────────────────────
@@ -441,7 +419,80 @@ function eventTimeLabel(e) {
   return e.time ? `${date} ${e.time}` : `${date} 종일`;
 }
 
-function buildMessage(deadlinesByTier, workshops, events, from) {
+/** 'YYYY-MM-DD' → '10/8(목)'. 일정 쪽과 같은 이유로 로케일 포맷터를 쓰지 않습니다. */
+function dueLabel(due) {
+  const [y, m, d] = due.split('-').map(Number);
+  const weekday = WEEKDAY_KO[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+  return `${m}/${d}(${weekday})`;
+}
+
+/**
+ * 마감일 오름차순인 배열을 달 단위로 묶습니다. Map 이라 넣은 순서가 유지되므로
+ * 월 순서도 그대로 오름차순입니다.
+ *
+ * 월 이름은 날짜 문자열에서 직접 만듭니다. new Date(due).getMonth() 는 실행
+ * 환경의 시간대에 따라 1일이 전달로 밀립니다 (CLAUDE.md §4).
+ */
+function groupByMonth(events) {
+  const months = new Map();
+  for (const e of events) {
+    const [year, month] = e.due.split('-');
+    const key = `${year}년 ${Number(month)}월`;
+    const bucket = months.get(key);
+    if (bucket) bucket.push(e);
+    else months.set(key, [e]);
+  }
+  return months;
+}
+
+function eventRow(e, lead) {
+  const name = e.url ? `<${e.url}|${e.venue}>` : e.venue;
+  return `· ${lead} ${name} ${e.what}`;
+}
+
+/**
+ * 하이브리드 표현: 임박한 것은 위에 따로 모으고, 나머지는 월별로 묶습니다.
+ *
+ * 티어 그룹핑(긴급/이번 달/다음 달/그 이후)을 대신합니다. 티어 이름은 경계가
+ * 상대적이라 "다음 달"이 실제로 몇 월인지 읽는 사람이 세어 봐야 했고, D-61 과
+ * D-180 이 똑같이 "그 이후"에 들어가 멀리 있는 일정 사이의 간격이 보이지
+ * 않았습니다. 달 이름을 그대로 쓰면 투고 계획을 달 단위로 읽을 수 있습니다.
+ */
+function renderTimeline(events, urgentDays) {
+  const lines = [];
+  const urgent = events.filter((e) => e.daysLeft <= urgentDays);
+  const later = events.filter((e) => e.daysLeft > urgentDays);
+
+  // 임박 구간은 접지 않습니다. 당장 손을 써야 하는 것을 "그 외 N건"으로 숨기면
+  // 이 섹션을 따로 둔 의미가 없어집니다.
+  if (urgent.length > 0) {
+    lines.push(`🚨 *임박 마감 (D-${urgentDays} 이내, ${urgent.length}건)*`);
+    for (const e of urgent) {
+      lines.push(eventRow(e, `\`${ddayLabel(e.daysLeft)}\` ${dueLabel(e.due)}`));
+    }
+  }
+
+  if (later.length > 0) {
+    if (lines.length > 0) lines.push('');
+    lines.push('📆 *학회 타임라인*');
+    for (const [month, monthEvents] of groupByMonth(later)) {
+      lines.push('', `▸ *${month}* (${monthEvents.length}건)`);
+      const shown = monthEvents.slice(0, MAX_PER_MONTH);
+      for (const e of shown) {
+        lines.push(eventRow(e, `${dueLabel(e.due)} \`${ddayLabel(e.daysLeft)}\``));
+      }
+      // 접은 것을 볼 수 있는 화면을 아직 안내하지 못합니다. /internal/deadlines 는
+      // conferences.yaml 과 자동 수집분만 읽어서 private venue 를 모르고,
+      // 그것을 보여 줄 대시보드는 Phase 3 입니다. 없는 곳으로 안내하지 않습니다.
+      const rest = monthEvents.length - shown.length;
+      if (rest > 0) lines.push(`· 그 외 ${rest}건 생략`);
+    }
+  }
+
+  return lines;
+}
+
+function buildMessage(deadlineEvents, urgentDays, workshops, events, from) {
   const week = from.toLocaleDateString('ko-KR', {
     year: 'numeric',
     month: 'long',
@@ -461,25 +512,11 @@ function buildMessage(deadlinesByTier, workshops, events, from) {
     }
   }
 
-  // 티어별로 묶어서 보여줍니다. 빈 티어는 아예 줄을 만들지 않습니다 — "긴급 (0건)"처럼
-  // 빈 헤더가 매주 반복되면 아무도 안 읽는 잡음이 됩니다.
-  lines.push('', '*학회 마감*');
-  const totalDeadlines = TIER_ORDER.reduce((sum, tier) => sum + deadlinesByTier[tier].length, 0);
-  if (totalDeadlines === 0) {
-    lines.push('· 임박한 학회 마감이 없습니다.');
+  lines.push('');
+  if (deadlineEvents.length === 0) {
+    lines.push('*학회 마감*', '· 임박한 학회 마감이 없습니다.');
   } else {
-    for (const tier of TIER_ORDER) {
-      const items = deadlinesByTier[tier];
-      if (items.length === 0) continue;
-      lines.push(`_${TIER_LABEL[tier]}_ (${items.length}건)`);
-      const shown = items.slice(0, MAX_PER_TIER);
-      for (const d of shown) {
-        const name = d.url ? `<${d.url}|${d.venue}>` : d.venue;
-        lines.push(`· \`${ddayLabel(d.daysLeft)}\` ${name} ${d.what} — ${d.due}`);
-      }
-      const rest = items.length - shown.length;
-      if (rest > 0) lines.push(`· 그 외 ${rest}개는 사이트 참조 (/calendar)`);
-    }
+    lines.push(...renderTimeline(deadlineEvents, urgentDays));
   }
 
   // 없거나 비어 있으면 섹션째 생략합니다 — workshops.yaml은 수동 관리라 안 채워둔
@@ -586,15 +623,15 @@ async function main() {
 
   const from = new Date();
   logRunTiming(from);
-  const deadlinesByTier = tieredDeadlines(from);
-  const deadlineCount = TIER_ORDER.reduce((sum, tier) => sum + deadlinesByTier[tier].length, 0);
-  console.log(`  ${green('✓')} 마감 ${dim(`${deadlineCount}건 (티어별 그룹핑)`)}`);
+  const { lookaheadDays, urgentDays } = getDisplayConfig();
+  const deadlineEvents = flattenEvents(collectVenues(), from, lookaheadDays);
+  console.log(`  ${green('✓')} 마감 ${dim(`${deadlineEvents.length}건 (앞으로 ${lookaheadDays}일)`)}`);
 
   const workshops = upcomingWorkshops(from);
   console.log(`  ${green('✓')} Workshop ${dim(`${workshops.length}건`)}`);
 
   const events = await upcomingLabEvents(from);
-  const message = buildMessage(deadlinesByTier, workshops, events, from);
+  const message = buildMessage(deadlineEvents, urgentDays, workshops, events, from);
 
   console.log(`\n${dim('─'.repeat(24))}`);
   console.log(message);
